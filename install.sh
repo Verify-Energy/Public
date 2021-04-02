@@ -253,7 +253,16 @@ do_install ()
     i=0
     for p in "${parameters[@]}"
     do
+        private_json="rsa-private.json"
+        if [ -f "$private_json" ]; then
+            cmd="docker login -u _json_key --password-stdin https://us.gcr.io < $private_json"
+            Info $cmd
+            eval $cmd
+        fi
         cmd="docker run -it -d $p --name ${service}-${i} --restart unless-stopped ${url}${ver_str} ${binary_options}"
+        Info $cmd
+        $cmd
+        cmd="docker logout https://us.gcr.io"
         Info $cmd
         $cmd
         #docker run -d $p --name ${service}-${i} --restart unless-stopped $url
