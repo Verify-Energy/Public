@@ -121,7 +121,9 @@ update_dhcpcd_conf ()
 ### Add aliases ################################
 alias_file=./.aliases_power
 
-registry=us.gcr.io/powergatedev/
+project=$(grep '"project"' connection.json|cut -f2 -d":"|tr -d '",')
+echo project is $project
+registry="us.gcr.io/"$project/
 ### powerfly
 service=powerfly
 c=p
