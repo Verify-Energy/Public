@@ -7,6 +7,7 @@ if [[ $EUID > 0 ]] ; then
     echo "Please run as root or use sudo "
     exit
 fi
+command_args=$@
 
 # Add connectd_start_all to cron jobs for root user
 command="/usr/bin/connectd_start_all"
@@ -29,6 +30,11 @@ required_files=("config.json"
 "rsa-private.pem" 
 )
 
+project=$(grep '"project"' connection.json|cut -f2 -d":"|tr -d '",')
+device_registry=$(grep '"registry"' connection.json|cut -f2 -d":"|tr -d '",')
+device_id=$(grep '"device"' connection.json|cut -f2 -d":"|tr -d '",')
+registry="us.gcr.io/"$project/
+
 log_installer_data ()
 {
     echo $@ >> $LOG_FILE
@@ -36,25 +42,51 @@ log_installer_data ()
 
 log_docker_info ()
 {
-    cmd="docker ps"
-    log_installer_data ========  $cmd $@
-    $cmd >> $LOG_FILE
     cmd="docker images --digests"
     log_installer_data ========  $cmd $@
     $cmd >> $LOG_FILE
-    grep Powerfly logging.txt | tail -5 >> $LOG_FILE
+    cmd="docker ps -a"
+    log_installer_data ========  $cmd $@
+    $cmd >> $LOG_FILE
+
+    log_installer_data ========  docker container details
+    cmd="docker ps -a -q"
+    containers=$($cmd)
+    for container in $containers
+    do
+        cmd="docker inspect $container | grep Image"
+        eval docker_image_info=\`${cmd}\`
+        echo $docker_image_info >> $LOG_FILE
+        cmd="docker inspect $container | grep Labels -A 5"
+        eval docker_ver_info=\`${cmd}\`
+        echo $docker_ver_info >> $LOG_FILE
+    done
+
+    log_installer_data "========  Powerfly startup log (from log file)"
+    grep Powerfly logging.txt >> $LOG_FILE
+    log_installer_data "========  Powerfly latest startup time (from log file)"
+    grep Powerfly logging.txt |tail -1 >> $LOG_FILE
 }
 
+do_exit()
+{
+    log_docker_info end
+    cmd="date"
+    data=$($cmd)
+    log_installer_data ==================================  Session End [$data]
+    printf "\n" >> $LOG_FILE
+    exit $@
+}
 ### Error($1:Msg)
 Error ()
 {
-    echo -e "${RED}$1${SET}"
+    echo -e "${RED}$@${SET}"
     log_installer_data Error: $@
 }
 
 Info ()
 {
-    echo -e "${YELLOW}$1${SET}"
+    echo -e "${YELLOW}$@${SET}"
     log_installer_data Info: $@
 }
 
@@ -62,7 +94,7 @@ Info ()
 
 if [ "$OSTYPE" != "linux-gnueabihf" ] && [ "$OSTYPE" != "linux-gnu" ]; then
    Error "This script runs only on Linux flavours. Found [$OSTYPE]"
-   exit -1
+   do_exit -1
 fi
 
 # Check file_list
@@ -70,20 +102,31 @@ for file_name in "${required_files[@]}"; do
     if [ ! -f "$file_name" ]; then
         Error "Error: Missing $file_name."
         echo "Make sure you are in the right Directory."
-        exit -1
+        do_exit -1
     fi
 done
 
-#log_installer_data begin
-cmd="date"
-log_installer_data ========  $cmd
-$cmd >> $LOG_FILE
-log_docker_info begin
-log_installer_data  $OSTYPE
-log_installer_data ========  Command
-log_installer_data  $0 $@
-#log_installer_data complete
+do_entry()
+{
+    #log_installer_data begin
+    printf "\n" >> $LOG_FILE
+    log_installer_data
+    cmd="date"
+    data=$($cmd)
+    log_installer_data ==================================  Session Begin [$data]
+    #log_installer_data "Date            : $data"
+    log_installer_data "OS              : $OSTYPE"
+    log_installer_data "Gateway device  : $device_id"
+    log_installer_data "Device registry : $device_registry"
+    log_installer_data "Image registry  : $registry"
 
+    log_docker_info begin
+    log_installer_data ========  Command
+    log_installer_data  $0 $command_args
+    #log_installer_data complete
+}
+
+do_entry
 
 update_dhcpcd_conf ()
 {
@@ -121,9 +164,6 @@ update_dhcpcd_conf ()
 ### Add aliases ################################
 alias_file=./.aliases_power
 
-project=$(grep '"project"' connection.json|cut -f2 -d":"|tr -d '",')
-echo project is $project
-registry="us.gcr.io/"$project/
 ### powerfly
 service=powerfly
 c=p
@@ -189,7 +229,7 @@ where:
     -u --uninstall                           uninstalls
     -s --status                              status of a service
 EOF
-   exit 0
+   do_exit 0
 }
 
 ### prints status of given service
@@ -220,7 +260,7 @@ is_installed ()
 do_install ()
 {
     # do the installation
-    Info "Installing service [$service]"
+    Info "Installing service [$service] on [$device_id] from [$registry]"
 
     # if installed, and not interesetd to upgrade exit
     is_installed
@@ -229,7 +269,8 @@ do_install ()
         echo ""
         if [[ $SELECT =~ ^[Nn]$ ]]
         then
-            exit 1
+            Info "Not reinstalling service [$service]."
+            do_exit 1
         fi
 
         # if interested uninstall first
@@ -270,7 +311,7 @@ do_install ()
         #docker run -d $p --name ${service}-${i} --restart unless-stopped $url
         if [ $? != 0 ]; then
             Error "!!! Error installing the [$service] "
-            exit 1
+            do_exit 1
         fi
         i=$((i+1))
     done
@@ -284,7 +325,7 @@ do_uninstall ()
    is_installed
    if [ $? == 0 ]; then
        Info " Service [$service] not installed"
-       exit 1
+       do_exit 1
    fi
 
    Info "Stopping service [$service]"
@@ -299,7 +340,7 @@ do_uninstall ()
        docker stop $c
        if [ $? != 0 ]; then
            Error "!!! ERROR Not able to stop the service [$c]"
-           exit 1
+           do_exit 1
        fi
    done
 
@@ -313,7 +354,7 @@ do_uninstall ()
        docker container rm -f $c
        if [ $? != 0 ]; then
            Error "!!! ERROR Not able to delete the container [$c]"
-           exit 1
+           do_exit 1
        fi
    done
 
@@ -327,7 +368,7 @@ do_uninstall ()
        docker image rm $i
        if [ $? != 0 ]; then
            Error "!!! ERROR Not able to delete docker image [$i]"
-           exit 1
+           do_exit 1
        fi
    done
 
@@ -335,7 +376,7 @@ do_uninstall ()
    is_installed
    if [ $? == 1 ]; then
        Error "Uninstalled failed"
-       exit
+       do_exit
    else
        Info "Uninstalled successfully"
    fi
@@ -393,7 +434,7 @@ update_dhcpcd_conf
 ### Main ###
 
 # parse parameters
-install=
+install=1
 service=
 status=
 instances=1
@@ -438,10 +479,10 @@ while [ "$1" != "" ]; do
         -s | --status )         status=1
                                 ;;
         -h | --help )           usage
-                                exit
+                                do_exit
                                 ;;
         * )                     usage
-                                exit 1
+                                do_exit 1
     esac
     shift
 done
@@ -475,7 +516,7 @@ fi
 ### Call status if asked
 if [ -n "$status" ]; then
     do_status
-    exit
+    do_exit
 fi
 
 ### Install or Uninstal
@@ -487,5 +528,5 @@ if [ -n "$install" ]; then
     fi
 fi
 
-log_docker_info end
-exit 0
+do_exit 0
+
