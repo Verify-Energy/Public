@@ -45,19 +45,19 @@ log_docker_info ()
     cmd="docker images --digests"
     log_installer_data ========  $cmd $@
     $cmd >> $LOG_FILE
-    cmd="docker ps"
+    cmd="docker ps -a"
     log_installer_data ========  $cmd $@
     $cmd >> $LOG_FILE
 
     log_installer_data ========  docker container details
-    cmd="docker ps -q"
+    cmd="docker ps -a -q"
     containers=$($cmd)
     for container in $containers
     do
         cmd="docker inspect $container | grep Image"
         eval docker_image_info=\`${cmd}\`
         echo $docker_image_info >> $LOG_FILE
-        cmd="docker inspect $container | grep Labels -A 6"
+        cmd="docker inspect $container | grep Labels -A 5"
         eval docker_ver_info=\`${cmd}\`
         echo $docker_ver_info >> $LOG_FILE
     done
