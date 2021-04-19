@@ -219,7 +219,7 @@ usage() {
 Usage: $0 -p | -m dev [-i ins [-l] [-v v] [-t p] ] | -u | -s]
 where:
     -p --powerfly                            powerfly service
-    -m --modbus [inverter|carboncap|meter|acuvim|acuvim-l|solectria|hawk-1000|delta-M80|BACNetServerSim]
+    -m --modbus [inverter|carboncap|meter|acuvim|acuvim-l|solectria|hawk-1000|delta-M80|hiq-solar|BACNetServerSim]
                                              modbus-slave service
     -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
     -l --local                               install from local docker(tar) image
@@ -506,6 +506,7 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "hawk-1000" ] \
   && [ "$device_type" != "delta-M80" ] \
   && [ "$device_type" != "BACNetServerSim" ] \
+  && [ "$device_type" != "hiq-solar" ] \
   && [ "$device_type" != "acuvim-l" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
