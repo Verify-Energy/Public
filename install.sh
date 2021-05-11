@@ -62,10 +62,14 @@ log_docker_info ()
         echo $docker_ver_info >> $LOG_FILE
     done
 
-    log_installer_data "========  Powerfly startup log (from log file)"
-    grep Powerfly logging.txt >> $LOG_FILE
-    log_installer_data "========  Powerfly latest startup time (from log file)"
-    grep Powerfly logging.txt |tail -1 >> $LOG_FILE
+    if [ -f "logging.txt" ]; then
+        log_installer_data "========  Powerfly startup log (from log file)"
+        grep Powerfly logging.txt >> $LOG_FILE
+        log_installer_data "========  Powerfly latest startup time (from log file)"
+        grep Powerfly logging.txt |tail -1 >> $LOG_FILE
+    else 
+        echo "New installation." >> $LOG_FILE
+    fi
 }
 
 do_exit()
@@ -115,10 +119,10 @@ do_entry()
     data=$($cmd)
     log_installer_data ==================================  Session Begin [$data]
     #log_installer_data "Date            : $data"
-    log_installer_data "OS              : $OSTYPE"
-    log_installer_data "Gateway device  : $device_id"
-    log_installer_data "Device registry : $device_registry"
-    log_installer_data "Image registry  : $registry"
+    Info "OS              : $OSTYPE"
+    Info "Gateway device  : $device_id"
+    Info "Device registry : $device_registry"
+    Info "Image registry  : $registry"
 
     log_docker_info begin
     log_installer_data ========  Command
@@ -302,20 +306,33 @@ do_install ()
             Info $cmd
             eval $cmd
         fi
+        Info "Docker image    : ${url}${ver_str}"
         cmd="docker run -it -d $p --name ${service}-${i} --restart unless-stopped ${url}${ver_str} ${binary_options}"
-        Info $cmd
-        $cmd
-        cmd="docker logout https://us.gcr.io"
         Info $cmd
         $cmd
         #docker run -d $p --name ${service}-${i} --restart unless-stopped $url
         if [ $? != 0 ]; then
             Error "!!! Error installing the [$service] "
+            cmd="docker logout https://us.gcr.io"
+            Info $cmd
+            $cmd
             do_exit 1
         fi
+        cmd="docker logout https://us.gcr.io"
+        Info $cmd
+        $cmd
         i=$((i+1))
     done
-    Info "Service [$service] installed successfully "
+    is_installed
+    if [ $? == 1 ]; then
+        Info "Service [$service] installed successfully "
+        echo "5 second wait start"
+        sleep 5
+        echo "5 second wait complete"
+    else
+        Error "!!! Error installing the [$service] "
+    fi
+    
 }
 
 ### Uninstalls a service
@@ -441,6 +458,11 @@ instances=1
 version=
 ver_str=
 interval=
+
+if [[ "$project" == *"development"* ]]; then
+    version=develop
+    ver_str=":$version"
+fi
 
 [ "$#" -lt 1 ] && usage
 
