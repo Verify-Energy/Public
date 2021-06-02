@@ -45,8 +45,7 @@ is_watchdog_dev_present ()
 
 is_watchdog_installed ()
 {
-    FILE=/etc/watchdog.conf
-    if test -f "$FILE"; then
+    if [ -x "$(command -v watchdog)" ]; then
         return 1  
     fi
     return 0
@@ -54,8 +53,8 @@ is_watchdog_installed ()
 
 install_watchdog ()
 {
-    apt-get update
-    apt-get install watchdog
+    #apt update
+    apt install watchdog
 }
 
 is_watchdog_configured ()
@@ -109,13 +108,20 @@ watchdog_init ()
         if [ $watchdog_dev_presence == 1 ]; then
             is_watchdog_installed
             installed_status=$?
-            echo installed_status is $installed_status
             if [ $installed_status == 1 ]; then
-                echo watchdog installed and ready
+                echo "Watchdog installed and ready"
             else
-                echo Install watchdog
-                #install_watchdog
-                #configure_watchdog
+                echo "Install watchdog"
+                install_watchdog
+                configure_watchdog
+                is_watchdog_installed
+                installed_status=$?
+                if [ $installed_status == 1 ]; then
+                    echo "Watchdog installed and ready"
+                else
+                    echo "Error: Watchdog installation failed."
+                fi
+
             fi
         else
             check_kernel_watchdog
