@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 is_watchdog_in_boot_config ()
 {
     cmd="grep dtparam=watchdog=on /boot/config.txt -c"
@@ -53,7 +52,7 @@ is_watchdog_configured ()
 update_watchdog_config ()
 {
     powerfly_log=$('pwd')/logging.txt
-    sed -i 's@file = [a-zA-Z0-9_-]*@file = '$powerfly_log'@g' /etc/watchdog.conf
+    sed -i 's@file = [a-zA-Z0-9_./-]*@file = '$powerfly_log'@' /etc/watchdog.conf
 }
 
 add_watchdog_config ()
@@ -78,23 +77,35 @@ is_watchdog_service_enabled()
 
 enable_watchdog_service()
 {
-    systemctl enable watchdog
-    systemctl start watchdog
-    systemctl status watchdog
     is_watchdog_service_enabled
     watchdog_service_state=$?
     if [ $watchdog_service_state == 0 ]; then
-            echo "Error: Unable to start watchdog service"
+        echo "Starting watchdog service"
+        systemctl enable watchdog
+        systemctl start watchdog
+        systemctl status --no-pager watchdog
+        is_watchdog_service_enabled
+        watchdog_service_state=$?
+        if [ $watchdog_service_state == 0 ]; then
+                echo "Error: Unable to start watchdog service"
+        fi
     fi
 }
 
 disable_watchdog_service()
 {
-    systemctl disable watchdog
-    systemctl stop watchdog
-    systemctl status watchdog
+    is_watchdog_service_enabled
+    watchdog_service_state=$?
     if [ $watchdog_service_state == 1 ]; then
-            echo "Error: Unable to stop watchdog service"
+        echo "Stopping watchdog service"
+        systemctl disable watchdog
+        systemctl stop watchdog
+        systemctl status --no-pager watchdog
+        is_watchdog_service_enabled
+        watchdog_service_state=$?
+        if [ $watchdog_service_state == 1 ]; then
+                echo "Error: Unable to stop watchdog service"
+        fi
     fi
 }
 
