@@ -90,67 +90,54 @@ is_watchdog_service_enabled()
 
 watchdog_init ()
 {
-    #check_kernel_watchdog
-    #kernel_watchdog_presence=$?
-    #echo kernel_watchdog_presence is $kernel_watchdog_presence
-    #if [ $kernel_watchdog_presence == 0 ]; then
-    #    enable_kernel_watchdog
-    #    check_kernel_watchdog
-    #    kernel_watchdog_presence=$?
-    #    if [ $kernel_watchdog_presence == 1 ]; then
-    #        echo ready to reboot
-    #    else
-    #        echo unable to write to boot config
-    #    fi
-    #else
-        is_watchdog_dev_present
-        watchdog_dev_presence=$?
-        if [ $watchdog_dev_presence == 1 ]; then
+    is_watchdog_dev_present
+    watchdog_dev_presence=$?
+    if [ $watchdog_dev_presence == 1 ]; then
+        is_watchdog_installed
+        installed_status=$?
+        if [ $installed_status == 1 ]; then
+            echo "Watchdog installed and ready"
+        else
+            echo "Install watchdog"
+            install_watchdog
+            configure_watchdog
             is_watchdog_installed
             installed_status=$?
             if [ $installed_status == 1 ]; then
                 echo "Watchdog installed and ready"
             else
-                echo "Install watchdog"
-                install_watchdog
-                configure_watchdog
-                is_watchdog_installed
-                installed_status=$?
-                if [ $installed_status == 1 ]; then
-                    echo "Watchdog installed and ready"
-                else
-                    echo "Error: Watchdog installation failed."
-                fi
-
+                echo "Error: Watchdog installation failed."
             fi
-        else
+
+        fi
+    else
+        check_kernel_watchdog
+        kernel_watchdog_presence=$?
+        echo kernel_watchdog_presence is $kernel_watchdog_presence
+        if [ $kernel_watchdog_presence == 0 ]; then
+            enable_kernel_watchdog
             check_kernel_watchdog
             kernel_watchdog_presence=$?
-            echo kernel_watchdog_presence is $kernel_watchdog_presence
-            if [ $kernel_watchdog_presence == 0 ]; then
-                enable_kernel_watchdog
-                check_kernel_watchdog
-                kernel_watchdog_presence=$?
-                if [ $kernel_watchdog_presence == 1 ]; then
-                    echo "Ready to reboot"
-                else
-                    echo "Error:Unable to update boot file"
-                fi
+            if [ $kernel_watchdog_presence == 1 ]; then
+                echo "Ready to reboot"
             else
-                echo "Error: Boot file already contains changes. Try manual reboot"
+                echo "Error:Unable to update boot file"
             fi
+        else
+            echo "Error: Boot file already contains changes. Try manual reboot"
         fi
-        is_watchdog_service_enabled
-        watchdog_service_state=$?
-        if [ $watchdog_service_state == "0" ]; then
-            enable_watchdog_service
-        fi
-        is_watchdog_service_enabled
-        watchdog_service_state=$?
-        if [ $watchdog_service_state == "0" ]; then
-                echo "Error: Unable to start service"
-        fi
-    #fi
+    fi
+    is_watchdog_service_enabled
+    watchdog_service_state=$?
+    if [ $watchdog_service_state == "0" ]; then
+        enable_watchdog_service
+    fi
+    is_watchdog_service_enabled
+    watchdog_service_state=$?
+    if [ $watchdog_service_state == "0" ]; then
+            echo "Error: Unable to start service"
+    fi
+
 }
 
 watchdog_init
