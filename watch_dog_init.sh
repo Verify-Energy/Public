@@ -96,20 +96,6 @@ add_watchdog_config ()
     echo 'change = 60'  >> /etc/watchdog.conf
 }
 
-enable_watchdog_service()
-{
-    systemctl enable watchdog
-    systemctl start watchdog
-    systemctl status watchdog
-}
-
-disable_watchdog_service()
-{
-    systemctl disable watchdog
-    systemctl stop watchdog
-    systemctl status watchdog
-}
-
 is_watchdog_service_enabled()
 {
     cmd='systemctl is-active watchdog'
@@ -118,6 +104,28 @@ is_watchdog_service_enabled()
         return 1 ;
     fi
     return 0
+}
+
+enable_watchdog_service()
+{
+    systemctl enable watchdog
+    systemctl start watchdog
+    systemctl status watchdog
+    is_watchdog_service_enabled
+    watchdog_service_state=$?
+    if [ $watchdog_service_state == 0 ]; then
+            echo "Error: Unable to start watchdog service"
+    fi
+}
+
+disable_watchdog_service()
+{
+    systemctl disable watchdog
+    systemctl stop watchdog
+    systemctl status watchdog
+    if [ $watchdog_service_state == 1 ]; then
+            echo "Error: Unable to stop watchdog service"
+    fi
 }
 
 watchdog_init ()
@@ -195,17 +203,6 @@ watchdog_init ()
             echo "Error: Boot file already contains changes. Try manual reboot"
         fi
     fi
-    is_watchdog_service_enabled
-    watchdog_service_state=$?
-    if [ $watchdog_service_state == "0" ]; then
-        enable_watchdog_service
-    fi
-    is_watchdog_service_enabled
-    watchdog_service_state=$?
-    if [ $watchdog_service_state == "0" ]; then
-            echo "Error: Unable to start service"
-    fi
-
 }
 
-watchdog_init
+#watchdog_init
