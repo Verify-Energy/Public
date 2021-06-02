@@ -15,20 +15,35 @@
 #     echo "$FILE does not exist."
 # fi
 
+#powerfly_log=$('pwd')/logging.txt
+#
+#echo '#Watchdog Config for PowerFly' >> pop.txt
+#echo 'watchdog-device = /dev/watchdog' >> pop.txt
+#echo 'watchdog-timeout = 60' >> pop.txt
+#echo 'max-load-1 = 24' >> pop.txt
+#echo ' file = 'sample_file  >> pop.txt
+#echo '#file = 'sample_file  >> pop.txt
+#echo ' file = 'sample_file  >> pop.txt
+#echo ' file = 'sample_file  >> pop.txt
+#echo 'change = 60'  >> pop.txt
+#
+#sed -i 's@ file = [a-zA-Z0-9_-]*@ file = '$powerfly_log'@g' pop.txt
+#
+#exit 0
 
-check_kernel_watchdog ()
+is_watchdog_in_boot_config ()
 {
     cmd="grep dtparam=watchdog=on /boot/config.txt -c"
     watchdog_enabled=$($cmd)
     if [ $watchdog_enabled == 0 ]; then
-        echo check_kernel_watchdog ret 0
+        #echo is_watchdog_in_boot_config ret 0
         return 0
     fi
-    echo check_kernel_watchdog ret 1
+    #echo is_watchdog_in_boot_config ret 1
     return 1  
 }
 
-enable_kernel_watchdog ()
+add_watchdog_to_boot_config ()
 {
     echo 'dtparam=watchdog=on' >> /boot/config.txt
 }
@@ -59,16 +74,28 @@ install_watchdog ()
 
 is_watchdog_configured ()
 {
-    echo 'watchdog-device = /dev/watchdog' >> /etc/watchdog.conf
-    echo 'watchdog-timeout = 15' >> /etc/watchdog.conf
-    echo 'max-load-1 = 24' >> /etc/watchdog.conf    
+    cmd="grep PowerFly /etc/watchdog.conf -c"
+    watchdog_configured=$($cmd)
+    if [ $watchdog_configured == 0 ]; then
+        return 0
+    fi
+    return 1  
 }
 
-configure_watchdog ()
+update_watchdog_config ()
 {
-    echo 'watchdog-device = /dev/watchdog' >> /etc/watchdog.conf
-    echo 'watchdog-timeout = 15' >> /etc/watchdog.conf
-    echo 'max-load-1 = 24' >> /etc/watchdog.conf    
+    powerfly_log=$('pwd')/logging.txt
+    sed -i 's@file = [a-zA-Z0-9_-]*@file = '$powerfly_log'@g' /etc/watchdog.conf
+}
+
+add_watchdog_config ()
+{
+    echo '#Watchdog Config for PowerFly' >> /etc/watchdog.conf
+    update_watchdog_config
+    echo 'watchdog-timeout = 60' >> /etc/watchdog.conf
+    echo 'max-load-1 = 24' >> /etc/watchdog.conf
+    echo 'file = '$powerfly_log  >> /etc/watchdog.conf
+    echo 'change = 60'  >> /etc/watchdog.conf
 }
 
 enable_watchdog_service()
@@ -97,14 +124,46 @@ watchdog_init ()
         installed_status=$?
         if [ $installed_status == 1 ]; then
             echo "Watchdog installed and ready"
+            is_watchdog_configured
+            config_status=$?
+            if [ $config_status == 0 ]; then
+                echo "Watchdog config being added"
+                add_watchdog_config
+                is_watchdog_configured
+                config_status=$?
+                if [ $config_status == 1 ]; then
+                    echo "Watchdog Config success"
+                else
+                    echo "Error: Watchdog Config Add Failed"
+                fi           
+            else
+                echo "Watchdog config being updated"
+                update_watchdog_config
+            fi
+
         else
             echo "Install watchdog"
             install_watchdog
-            configure_watchdog
             is_watchdog_installed
             installed_status=$?
             if [ $installed_status == 1 ]; then
                 echo "Watchdog installed and ready"
+                is_watchdog_configured
+                config_status=$?
+                if [ $config_status == 0 ]; then
+                    echo "Watchdog config being added"
+                    add_watchdog_config
+                    is_watchdog_configured
+                    config_status=$?
+                    if [ $config_status == 1 ]; then
+                        echo "Watchdog Config success"
+                    else
+                        echo "Error: Watchdog Config Add Failed"
+                    fi              
+                else
+                    echo "Watchdog config being updated"
+                    update_watchdog_config
+                fi
             else
                 echo "Error: Watchdog installation failed."
             fi
@@ -119,7 +178,10 @@ watchdog_init ()
             check_kernel_watchdog
             kernel_watchdog_presence=$?
             if [ $kernel_watchdog_presence == 1 ]; then
-                echo "Ready to reboot"
+                echo "Reboot in 5 seconds"
+                sleep 5
+                echo "Reboot"
+                reboot
             else
                 echo "Error:Unable to update boot file"
             fi
