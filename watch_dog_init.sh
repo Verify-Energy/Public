@@ -1,35 +1,5 @@
 #!/bin/bash
 
-# grep "dtparam=watchdog=on" /boot/config.txt
-# 
-# grep dtparam=watchdog=on /boot/config.txt -c
-# 
-# cmd="grep dtparam=watchdog=on /boot/config.txt -c"
-# watchdog_enabled=$($cmd)
-# 
-# 
-# FILE=/dev/watchdog
-# if test -f "$FILE"; then
-#     echo "$FILE exists."
-# else 
-#     echo "$FILE does not exist."
-# fi
-
-#powerfly_log=$('pwd')/logging.txt
-#
-#echo '#Watchdog Config for PowerFly' >> pop.txt
-#echo 'watchdog-device = /dev/watchdog' >> pop.txt
-#echo 'watchdog-timeout = 60' >> pop.txt
-#echo 'max-load-1 = 24' >> pop.txt
-#echo ' file = 'sample_file  >> pop.txt
-#echo '#file = 'sample_file  >> pop.txt
-#echo ' file = 'sample_file  >> pop.txt
-#echo ' file = 'sample_file  >> pop.txt
-#echo 'change = 60'  >> pop.txt
-#
-#sed -i 's@ file = [a-zA-Z0-9_-]*@ file = '$powerfly_log'@g' pop.txt
-#
-#exit 0
 
 is_watchdog_in_boot_config ()
 {
