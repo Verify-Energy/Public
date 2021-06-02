@@ -153,7 +153,7 @@ enable_watchdog_service()
     is_watchdog_service_enabled
     watchdog_service_state=$?
     if [ $watchdog_service_state == 0 ]; then
-        echo "Starting watchdog service"
+        #echo "Starting watchdog service"
         systemctl enable watchdog
         systemctl start watchdog
         systemctl status --no-pager watchdog
@@ -170,7 +170,7 @@ disable_watchdog_service()
     is_watchdog_service_enabled
     watchdog_service_state=$?
     if [ $watchdog_service_state == 1 ]; then
-        echo "Stopping watchdog service"
+        #echo "Stopping watchdog service"
         systemctl disable watchdog
         systemctl stop watchdog
         systemctl status --no-pager watchdog
@@ -190,21 +190,19 @@ watchdog_init ()
         is_watchdog_installed
         installed_status=$?
         if [ $installed_status == 1 ]; then
-            echo "Watchdog installed and ready"
+            #echo "Watchdog installed and ready"
             is_watchdog_configured
             config_status=$?
             if [ $config_status == 0 ]; then
-                echo "Watchdog config being added"
+                #echo "Watchdog config being added"
                 add_watchdog_config
                 is_watchdog_configured
                 config_status=$?
-                if [ $config_status == 1 ]; then
-                    echo "Watchdog Config success"
-                else
+                if [ $config_status == 0 ]; then
                     echo "Error: Watchdog Config Add Failed"
                 fi           
             else
-                echo "Watchdog config being updated"
+                #echo "Watchdog config being updated"
                 update_watchdog_config
             fi
 
@@ -214,21 +212,19 @@ watchdog_init ()
             is_watchdog_installed
             installed_status=$?
             if [ $installed_status == 1 ]; then
-                echo "Watchdog installed and ready"
+                #echo "Watchdog installed and ready"
                 is_watchdog_configured
                 config_status=$?
                 if [ $config_status == 0 ]; then
-                    echo "Watchdog config being added"
+                    #echo "Watchdog config being added"
                     add_watchdog_config
                     is_watchdog_configured
                     config_status=$?
-                    if [ $config_status == 1 ]; then
-                        echo "Watchdog Config success"
-                    else
+                    if [ $config_status == 0 ]; then
                         echo "Error: Watchdog Config Add Failed"
                     fi              
                 else
-                    echo "Watchdog config being updated"
+                    #echo "Watchdog config being updated"
                     update_watchdog_config
                 fi
             else
@@ -467,6 +463,9 @@ do_install ()
             Info "Not reinstalling service [$service]."
             do_exit 1
         fi
+
+        #disable watchdog
+        disable_watchdog_service
 
         # if interested uninstall first
         do_uninstall
