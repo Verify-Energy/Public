@@ -36,10 +36,8 @@ is_watchdog_in_boot_config ()
     cmd="grep dtparam=watchdog=on /boot/config.txt -c"
     watchdog_enabled=$($cmd)
     if [ $watchdog_enabled == 0 ]; then
-        #echo is_watchdog_in_boot_config ret 0
         return 0
     fi
-    #echo is_watchdog_in_boot_config ret 1
     return 1  
 }
 
@@ -102,6 +100,13 @@ enable_watchdog_service()
 {
     systemctl enable watchdog
     systemctl start watchdog
+    systemctl status watchdog
+}
+
+disable_watchdog_service()
+{
+    systemctl disable watchdog
+    systemctl stop watchdog
     systemctl status watchdog
 }
 
@@ -170,14 +175,15 @@ watchdog_init ()
 
         fi
     else
-        check_kernel_watchdog
-        kernel_watchdog_presence=$?
-        echo kernel_watchdog_presence is $kernel_watchdog_presence
-        if [ $kernel_watchdog_presence == 0 ]; then
-            enable_kernel_watchdog
+        is_watchdog_in_boot_config
+        boot_config_watchdog_presence=$?
+        #echo boot_config_watchdog_presence is $boot_config_watchdog_presence
+        if [ $boot_config_watchdog_presence == 0 ]; then
+            echo "Enable Watchdog in /boot/config.txt"
+            add_watchdog_to_boot_config
             check_kernel_watchdog
-            kernel_watchdog_presence=$?
-            if [ $kernel_watchdog_presence == 1 ]; then
+            boot_config_watchdog_presence=$?
+            if [ $boot_config_watchdog_presence == 1 ]; then
                 echo "Reboot in 5 seconds"
                 sleep 5
                 echo "Reboot"
