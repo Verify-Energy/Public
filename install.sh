@@ -62,10 +62,197 @@ log_docker_info ()
         echo $docker_ver_info >> $LOG_FILE
     done
 
-    log_installer_data "========  Powerfly startup log (from log file)"
-    grep Powerfly logging.txt >> $LOG_FILE
-    log_installer_data "========  Powerfly latest startup time (from log file)"
-    grep Powerfly logging.txt |tail -1 >> $LOG_FILE
+    if [ -f "logging.txt" ]; then
+        log_installer_data "========  Powerfly startup log (from log file)"
+        grep Powerfly logging.txt >> $LOG_FILE
+        log_installer_data "========  Powerfly latest startup time (from log file)"
+        grep Powerfly logging.txt |tail -1 >> $LOG_FILE
+    else 
+        echo "New installation." >> $LOG_FILE
+    fi
+}
+
+######### watchdog
+is_watchdog_in_boot_config ()
+{
+    cmd="grep dtparam=watchdog=on /boot/config.txt -c"
+    watchdog_enabled=$($cmd)
+    if [ $watchdog_enabled == 0 ]; then
+        return 0
+    fi
+    return 1  
+}
+
+add_watchdog_to_boot_config ()
+{
+    echo 'dtparam=watchdog=on' >> /boot/config.txt
+}
+
+is_watchdog_dev_present ()
+{
+    CHAR_FILE=/dev/watchdog
+
+    if test -c $CHAR_FILE; then
+        return 1  
+    fi
+    return 0
+}
+
+is_watchdog_installed ()
+{
+    if [ -x "$(command -v watchdog)" ]; then
+        return 1  
+    fi
+    return 0
+}
+
+install_watchdog ()
+{
+    #apt update
+    apt install watchdog
+}
+
+is_watchdog_configured ()
+{
+    cmd="grep PowerFly /etc/watchdog.conf -c"
+    watchdog_configured=$($cmd)
+    if [ $watchdog_configured == 0 ]; then
+        return 0
+    fi
+    return 1  
+}
+
+update_watchdog_config ()
+{
+    powerfly_log=$('pwd')/logging.txt
+    sed -i 's@file = [a-zA-Z0-9_./-]*@file = '$powerfly_log'@' /etc/watchdog.conf
+}
+
+add_watchdog_config ()
+{
+    echo '#Watchdog Config for PowerFly' >> /etc/watchdog.conf
+    update_watchdog_config
+    echo 'watchdog-timeout = 60' >> /etc/watchdog.conf
+    echo 'max-load-1 = 24' >> /etc/watchdog.conf
+    echo 'file = '$powerfly_log  >> /etc/watchdog.conf
+    echo 'change = 60'  >> /etc/watchdog.conf
+}
+
+is_watchdog_service_enabled()
+{
+    cmd='systemctl is-active watchdog'
+    service_state=$($cmd)
+    if [ $service_state == "active" ]; then
+        return 1 ;
+    fi
+    return 0
+}
+
+enable_watchdog_service()
+{
+    is_watchdog_service_enabled
+    watchdog_service_state=$?
+    if [ $watchdog_service_state == 0 ]; then
+        #echo "Starting watchdog service"
+        systemctl enable watchdog
+        systemctl start watchdog
+        systemctl status --no-pager watchdog
+        is_watchdog_service_enabled
+        watchdog_service_state=$?
+        if [ $watchdog_service_state == 0 ]; then
+                echo "Error: Unable to start watchdog service"
+        fi
+    fi
+}
+
+disable_watchdog_service()
+{
+    is_watchdog_service_enabled
+    watchdog_service_state=$?
+    if [ $watchdog_service_state == 1 ]; then
+        #echo "Stopping watchdog service"
+        systemctl disable watchdog
+        systemctl stop watchdog
+        systemctl status --no-pager watchdog
+        is_watchdog_service_enabled
+        watchdog_service_state=$?
+        if [ $watchdog_service_state == 1 ]; then
+                echo "Error: Unable to stop watchdog service"
+        fi
+    fi
+}
+
+watchdog_init ()
+{
+    is_watchdog_dev_present
+    watchdog_dev_presence=$?
+    if [ $watchdog_dev_presence == 1 ]; then
+        is_watchdog_installed
+        installed_status=$?
+        if [ $installed_status == 1 ]; then
+            #echo "Watchdog installed and ready"
+            is_watchdog_configured
+            config_status=$?
+            if [ $config_status == 0 ]; then
+                #echo "Watchdog config being added"
+                add_watchdog_config
+                is_watchdog_configured
+                config_status=$?
+                if [ $config_status == 0 ]; then
+                    echo "Error: Watchdog Config Add Failed"
+                fi           
+            else
+                #echo "Watchdog config being updated"
+                update_watchdog_config
+            fi
+
+        else
+            echo "Install watchdog"
+            install_watchdog
+            is_watchdog_installed
+            installed_status=$?
+            if [ $installed_status == 1 ]; then
+                #echo "Watchdog installed and ready"
+                is_watchdog_configured
+                config_status=$?
+                if [ $config_status == 0 ]; then
+                    #echo "Watchdog config being added"
+                    add_watchdog_config
+                    is_watchdog_configured
+                    config_status=$?
+                    if [ $config_status == 0 ]; then
+                        echo "Error: Watchdog Config Add Failed"
+                    fi              
+                else
+                    #echo "Watchdog config being updated"
+                    update_watchdog_config
+                fi
+            else
+                echo "Error: Watchdog installation failed."
+            fi
+
+        fi
+    else
+        is_watchdog_in_boot_config
+        boot_config_watchdog_presence=$?
+        #echo boot_config_watchdog_presence is $boot_config_watchdog_presence
+        if [ $boot_config_watchdog_presence == 0 ]; then
+            echo "Enable Watchdog in /boot/config.txt"
+            add_watchdog_to_boot_config
+            check_kernel_watchdog
+            boot_config_watchdog_presence=$?
+            if [ $boot_config_watchdog_presence == 1 ]; then
+                echo "Reboot in 5 seconds"
+                sleep 5
+                echo "Reboot"
+                reboot
+            else
+                echo "Error:Unable to update boot file"
+            fi
+        else
+            echo "Error: Boot file already contains changes. Try manual reboot"
+        fi
+    fi
 }
 
 do_exit()
@@ -115,10 +302,10 @@ do_entry()
     data=$($cmd)
     log_installer_data ==================================  Session Begin [$data]
     #log_installer_data "Date            : $data"
-    log_installer_data "OS              : $OSTYPE"
-    log_installer_data "Gateway device  : $device_id"
-    log_installer_data "Device registry : $device_registry"
-    log_installer_data "Image registry  : $registry"
+    Info "OS              : $OSTYPE"
+    Info "Gateway device  : $device_id"
+    Info "Device registry : $device_registry"
+    Info "Image registry  : $registry"
 
     log_docker_info begin
     log_installer_data ========  Command
@@ -159,7 +346,8 @@ update_dhcpcd_conf ()
     fi
 }
 
-
+#initialize watchdog
+watchdog_init
 
 ### Add aliases ################################
 alias_file=./.aliases_power
@@ -269,13 +457,22 @@ do_install ()
         echo ""
         if [[ $SELECT =~ ^[Nn]$ ]]
         then
+            #Enable watchdog
+            enable_watchdog_service
+
             Info "Not reinstalling service [$service]."
             do_exit 1
         fi
 
+        #disable watchdog
+        disable_watchdog_service
+
         # if interested uninstall first
         do_uninstall
     fi
+
+    #disable watchdog
+    disable_watchdog_service
 
     # everthing is fine good to start the container
     #Check if local docker image is to be used.
@@ -302,20 +499,37 @@ do_install ()
             Info $cmd
             eval $cmd
         fi
+        Info "Docker image    : ${url}${ver_str}"
         cmd="docker run -it -d $p --name ${service}-${i} --restart unless-stopped ${url}${ver_str} ${binary_options}"
-        Info $cmd
-        $cmd
-        cmd="docker logout https://us.gcr.io"
         Info $cmd
         $cmd
         #docker run -d $p --name ${service}-${i} --restart unless-stopped $url
         if [ $? != 0 ]; then
             Error "!!! Error installing the [$service] "
+            cmd="docker logout https://us.gcr.io"
+            Info $cmd
+            $cmd
             do_exit 1
         fi
+        cmd="docker logout https://us.gcr.io"
+        Info $cmd
+        $cmd
         i=$((i+1))
     done
-    Info "Service [$service] installed successfully "
+    is_installed
+    if [ $? == 1 ]; then
+        Info "Service [$service] installed successfully "
+        echo "5 second wait start"
+        sleep 5
+        echo "5 second wait complete"
+
+        #Enable watchdog
+        enable_watchdog_service
+
+    else
+        Error "!!! Error installing the [$service] "
+    fi
+    
 }
 
 ### Uninstalls a service
@@ -441,6 +655,11 @@ instances=1
 version=
 ver_str=
 interval=
+
+if [[ "$project" == *"development"* ]]; then
+    version=develop
+    ver_str=":$version"
+fi
 
 [ "$#" -lt 1 ] && usage
 
