@@ -142,7 +142,7 @@ add_watchdog_config ()
     echo 'change = 60'  >> /etc/watchdog.conf
 }
 
-wd_status='cmd="systemctl is-active watchdog"
+wd_status='cmd="sudo systemctl is-active watchdog"
     service_state=$($cmd)
     if [ $service_state == "active" ]; then
         return 1 ;
@@ -160,9 +160,9 @@ wd_enable='is_watchdog_service_enabled
     watchdog_service_state=$?
     if [ $watchdog_service_state == 0 ]; then
         #echo "Starting watchdog service"
-        systemctl enable watchdog
-        systemctl start watchdog
-        systemctl status --no-pager watchdog
+        sudo systemctl enable watchdog
+        sudo systemctl start watchdog
+        sudo systemctl status --no-pager watchdog
         is_watchdog_service_enabled
         watchdog_service_state=$?
         if [ $watchdog_service_state == 0 ]; then
@@ -179,9 +179,9 @@ wd_disable='is_watchdog_service_enabled
     watchdog_service_state=$?
     if [ $watchdog_service_state == 1 ]; then
         #echo "Stopping watchdog service"
-        systemctl disable watchdog
-        systemctl stop watchdog
-        systemctl status --no-pager watchdog
+        sudo systemctl disable watchdog
+        sudo systemctl stop watchdog
+        sudo systemctl status --no-pager watchdog
         is_watchdog_service_enabled
         watchdog_service_state=$?
         if [ $watchdog_service_state == 1 ]; then
@@ -370,8 +370,18 @@ wdstatus='is_watchdog_service_enabled() { '$wd_status' }'
 wdstart='enable_watchdog() { '$wd_enable' }'
 wdstop='disable_watchdog() { '$wd_disable' }'
 pstatus=$c'status() { sudo docker ps -a -f name='$service'-$1; }'
-pstart=$c'start() { sudo docker start '$service'-$1; enable_watchdog;}'
-pstop=$c'stop() { sudo docker stop '$service'-$1; disable_watchdog;}'
+pstart=$c'start() { sudo docker start '$service'-$1; 
+    error=$?
+    if [ $error == 0 ]; then
+        enable_watchdog
+    fi
+}'
+pstop=$c'stop() { sudo docker stop '$service'-$1; 
+    error=$?
+    if [ $error == 0 ]; then
+        disable_watchdog
+    fi
+}'
 pcat=$c'cat() { sudo docker logs '$service'-$1; }'
 pcatf=$c'catf() { sudo docker logs -f '$service'-$1; }'
 pps=$c'ps() { sudo docker ps -a -f name='$service'-$1; }'
