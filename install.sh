@@ -75,12 +75,16 @@ log_docker_info ()
 ######### watchdog
 is_watchdog_in_boot_config ()
 {
+    if [ -f "/boot/config.txt" ]; then
     cmd="grep dtparam=watchdog=on /boot/config.txt -c"
     watchdog_enabled=$($cmd)
     if [ $watchdog_enabled == 0 ]; then
         return 0
     fi
     return 1  
+    else
+        return 0
+    fi
 }
 
 add_watchdog_to_boot_config ()
@@ -138,48 +142,56 @@ add_watchdog_config ()
     echo 'change = 60'  >> /etc/watchdog.conf
 }
 
-is_watchdog_service_enabled()
-{
-    cmd='systemctl is-active watchdog'
+wd_status='cmd="sudo systemctl is-active watchdog"
     service_state=$($cmd)
     if [ $service_state == "active" ]; then
         return 1 ;
     fi
     return 0
+'
+is_watchdog_service_enabled()
+{
+    eval "$wd_status"
 }
 
-enable_watchdog_service()
-{
-    is_watchdog_service_enabled
+#is_watchdog_service_enabled
+
+wd_enable='is_watchdog_service_enabled
     watchdog_service_state=$?
     if [ $watchdog_service_state == 0 ]; then
         #echo "Starting watchdog service"
-        systemctl enable watchdog
-        systemctl start watchdog
-        systemctl status --no-pager watchdog
+        sudo systemctl enable watchdog
+        sudo systemctl start watchdog
+        sudo systemctl status --no-pager watchdog
         is_watchdog_service_enabled
         watchdog_service_state=$?
         if [ $watchdog_service_state == 0 ]; then
                 echo "Error: Unable to start watchdog service"
         fi
     fi
+'
+enable_watchdog_service()
+{
+    eval "$wd_enable"
 }
 
-disable_watchdog_service()
-{
-    is_watchdog_service_enabled
+wd_disable='is_watchdog_service_enabled
     watchdog_service_state=$?
     if [ $watchdog_service_state == 1 ]; then
         #echo "Stopping watchdog service"
-        systemctl disable watchdog
-        systemctl stop watchdog
-        systemctl status --no-pager watchdog
+        sudo systemctl disable watchdog
+        sudo systemctl stop watchdog
+        sudo systemctl status --no-pager watchdog
         is_watchdog_service_enabled
         watchdog_service_state=$?
         if [ $watchdog_service_state == 1 ]; then
                 echo "Error: Unable to stop watchdog service"
         fi
     fi
+'
+disable_watchdog_service()
+{
+   eval "$wd_disable"
 }
 
 watchdog_init ()
@@ -239,7 +251,6 @@ watchdog_init ()
         if [ $boot_config_watchdog_presence == 0 ]; then
             echo "Enable Watchdog in /boot/config.txt"
             add_watchdog_to_boot_config
-            check_kernel_watchdog
             boot_config_watchdog_presence=$?
             if [ $boot_config_watchdog_presence == 1 ]; then
                 echo "Reboot in 5 seconds"
@@ -355,9 +366,22 @@ alias_file=./.aliases_power
 ### powerfly
 service=powerfly
 c=p
+wdstatus='is_watchdog_service_enabled() { '$wd_status' }'
+wdstart='enable_watchdog() { '$wd_enable' }'
+wdstop='disable_watchdog() { '$wd_disable' }'
 pstatus=$c'status() { sudo docker ps -a -f name='$service'-$1; }'
-pstart=$c'start() { sudo docker start '$service'-$1; }'
-pstop=$c'stop() { sudo docker stop '$service'-$1; }'
+pstart=$c'start() { sudo docker start '$service'-$1; 
+    error=$?
+    if [ $error == 0 ]; then
+        enable_watchdog
+    fi
+}'
+pstop=$c'stop() { sudo docker stop '$service'-$1; 
+    error=$?
+    if [ $error == 0 ]; then
+        disable_watchdog
+    fi
+}'
 pcat=$c'cat() { sudo docker logs '$service'-$1; }'
 pcatf=$c'catf() { sudo docker logs -f '$service'-$1; }'
 pps=$c'ps() { sudo docker ps -a -f name='$service'-$1; }'
@@ -375,6 +399,9 @@ mps=$c'ps() { sudo docker ps -a -f name='$service'-$1; }'
 
 #  add it .bash_aliases file
 rm -f $alias_file
+echo "$wdstatus" >> $alias_file
+echo "$wdstart" >> $alias_file
+echo "$wdstop" >> $alias_file
 unset -f $pstatus &&  echo "$pstatus" >> $alias_file
 unset -f $pstart  &&  echo "$pstart"  >> $alias_file
 unset -f $pstop   &&  echo "$pstop"   >> $alias_file
@@ -407,7 +434,7 @@ usage() {
 Usage: $0 -p | -m dev [-i ins [-l] [-v v] [-t p] ] | -u | -s]
 where:
     -p --powerfly                            powerfly service
-    -m --modbus [inverter|carboncap|meter|acuvim|acuvim-l|solectria|hawk-1000|delta-M80|hiq-solar|BACNetServerSim]
+    -m --modbus [inverter|carboncap|meter|acuvim|acuvim_copy2|acuvim-l|solectria|hawk-1000|delta-M80|hiq-solar|BACNetServerSim]
                                              modbus-slave service
     -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
     -l --local                               install from local docker(tar) image
@@ -727,6 +754,7 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "BACNetServerSim" ] \
   && [ "$device_type" != "hiq-solar" ] \
   && [ "$device_type" != "acuvim-l" ] \
+  && [ "$device_type" != "acuvim_copy2" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
