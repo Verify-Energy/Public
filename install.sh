@@ -527,10 +527,16 @@ do_install ()
             eval $cmd
         fi
         Info "Docker image    : ${url}${ver_str}"
-        cmd="docker run -it -d $p --name ${service}-${i} --restart unless-stopped ${url}${ver_str} ${binary_options}"
+        cmd="docker run -it \
+        -d $p \
+        --name ${service}-${i} \
+        --restart unless-stopped \
+        ${url}${ver_str} \
+        ${binary_options} \
+        --log-opt max-size=100m --log-opt max-file=1
+        "
         Info $cmd
         $cmd
-        #docker run -d $p --name ${service}-${i} --restart unless-stopped $url
         if [ $? != 0 ]; then
             Error "!!! Error installing the [$service] "
             cmd="docker logout https://us.gcr.io"
