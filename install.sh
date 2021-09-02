@@ -455,6 +455,10 @@ private_json="rsa-private.json"
 # add auto upgrade_cronjob 
 add_auto_upgrade_cronjob(){
     powerfly_refresh_file=/usr/bin/powerfly_refresh
+    powerfly_refresh_list_file=/usr/bin/powerfly_refresh_list
+    folder_name=$("pwd")
+    # add folder name to the powerfly_refresh_list file.
+    grep -qsF -- $folder_name $powerfly_refresh_list_file || echo $folder_name >> $powerfly_refresh_list_file
     powerfly_refresh_file_content='#!/bin/bash
     pull_image() {
         cd '$("pwd")'
@@ -471,10 +475,15 @@ add_auto_upgrade_cronjob(){
 
         new_image="Downloaded newer image"
         if [[ "$status" == *"$new_image"* ]]; then
-            echo "Image updated."
-            cmd="./install.sh -p -i 1"
-            echo $cmd
-            $cmd
+            echo "Image updated. Running install.sh in all powerfly folders"            
+            while IFS= read -r line
+            do
+                echo "$line"
+                cd "$line"
+                cmd="./install.sh -p -i 1"
+                echo $cmd
+                $cmd
+            done < "'$powerfly_refresh_list_file'"
         else
             echo "Image not downloaded."
         fi
@@ -589,6 +598,9 @@ do_install ()
         else
             Info "Fetching local image for $docker_image"
         fi
+        cmd="docker system prune --force"
+        Info $cmd
+        $cmd
 
         if [ "$service_base" == "powerfly" ]
         then
