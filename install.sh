@@ -570,25 +570,36 @@ do_install ()
             eval $cmd
         fi
         docker_image=${url}${ver_str}
-        Info "Docker image    : $docker_image"
-        cmd="docker pull $docker_image "
-        Info $cmd
-        $cmd
-        if [ $? != 0 ]; then
-            Error "!!! Error Pulling [$docker_image]"
+        if [ $local_docker == 0 ]
+        then
+            Info "Docker image    : $docker_image"
+            cmd="docker pull $docker_image "
+            Info $cmd
+            $cmd
+            if [ $? != 0 ]; then
+                Error "!!! Error Pulling [$docker_image]"
+                cmd="docker logout https://us.gcr.io"
+                Info $cmd
+                $cmd
+                do_exit 1
+            fi
             cmd="docker logout https://us.gcr.io"
             Info $cmd
             $cmd
-            do_exit 1
+        else
+            Info "Fetching local image for $docker_image"
         fi
-        cmd="docker logout https://us.gcr.io"
-        Info $cmd
-        $cmd
 
+        if [ "$service_base" == "powerfly" ]
+        then
+            instance_suffix=""
+        else
+            instance_suffix="-${i}"
+        fi
         cmd="docker run -it \
         --log-opt max-size=100m --log-opt max-file=1 \
         -d $p \
-        --name ${service}-${i} \
+        --name ${service}${instance_suffix} \
         --restart unless-stopped \
         ${url}${ver_str} \
         ${binary_options} \
@@ -604,7 +615,7 @@ do_install ()
     is_installed
     if [ $? == 1 ]; then
         Info "Service [$service] installed successfully "
-        if [ "$service" == "powerfly" ] && [ "$environment" == "development" ]; then
+        if [ "$service_base" == "powerfly" ] && [ "$environment" == "development" ]; then
             docker_refresh_image=$docker_image
             add_auto_upgrade_cronjob
         fi
@@ -785,6 +796,12 @@ while [ "$1" != "" ]; do
     shift
 done
 
+if [ "$service_base" == "powerfly" ]
+then
+    #only one instance for powerfly
+    instances=1
+fi
+
 ### Validate options
 [ -n "$status" ]  && [ -z "$service" ] && usage
 [ -n "$install" ] && [ -z "$service" ] && usage
@@ -811,6 +828,9 @@ if [ -n "$device_type" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
   service="$service-$device_type"
+else
+  # form service name for powerfly 
+  service="$service-$device_id"
 fi
 
 ### Call status if asked
