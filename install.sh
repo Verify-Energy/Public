@@ -162,7 +162,7 @@ wd_enable='is_watchdog_service_enabled
         #echo "Starting watchdog service"
         sudo systemctl enable watchdog
         sudo systemctl start watchdog
-        sudo systemctl status --no-pager watchdog
+        sudo systemctl status --no-pager watchdog --lines=0
         is_watchdog_service_enabled
         watchdog_service_state=$?
         if [ $watchdog_service_state == 0 ]; then
@@ -181,7 +181,7 @@ wd_disable='is_watchdog_service_enabled
         #echo "Stopping watchdog service"
         sudo systemctl disable watchdog
         sudo systemctl stop watchdog
-        sudo systemctl status --no-pager watchdog
+        sudo systemctl status --no-pager watchdog --lines=0
         is_watchdog_service_enabled
         watchdog_service_state=$?
         if [ $watchdog_service_state == 1 ]; then
@@ -273,6 +273,9 @@ do_exit()
     data=$($cmd)
     log_installer_data ==================================  Session End [$data]
     printf "\n" >> $LOG_FILE
+    echo
+    Info "source $alias_file to get alias helpers"
+    echo
     exit $@
 }
 ### Error($1:Msg)
@@ -446,6 +449,56 @@ where:
 EOF
    do_exit 0
 }
+docker_refresh_image=''
+private_json="rsa-private.json"
+
+# add auto upgrade_cronjob 
+add_auto_upgrade_cronjob(){
+    powerfly_refresh_file=/usr/bin/powerfly_refresh
+    powerfly_refresh_list_file=/usr/bin/powerfly_refresh_list
+    folder_name=$("pwd")
+    # add folder name to the powerfly_refresh_list file.
+    grep -qsF -- $folder_name $powerfly_refresh_list_file || echo $folder_name >> $powerfly_refresh_list_file
+    powerfly_refresh_file_content='#!/bin/bash
+    pull_image() {
+        cd '$("pwd")'
+        cmd="docker login -u _json_key --password-stdin https://us.gcr.io < '$private_json'"
+        #echo $cmd
+        eval $cmd
+        cmd="docker pull "'$docker_refresh_image'
+        #echo cmd is [$cmd]
+        status=$($cmd)
+        cmd="docker logout https://us.gcr.io"
+        #echo $cmd
+        $cmd
+        echo status is $status
+
+        new_image="Downloaded newer image"
+        if [[ "$status" == *"$new_image"* ]]; then
+            echo "Image updated. Running install.sh in all powerfly folders"            
+            while IFS= read -r line
+            do
+                echo "$line"
+                cd "$line"
+                cmd="./install.sh -p -i 1"
+                echo $cmd
+                $cmd
+            done < "'$powerfly_refresh_list_file'"
+        else
+            echo "Image not downloaded."
+        fi
+    }
+    pull_image
+    '
+    echo "$powerfly_refresh_file_content" > $powerfly_refresh_file
+    chmod 777 $powerfly_refresh_file
+    # Add powerfly_refresh_file for root user
+    job="*/30 * * * * $powerfly_refresh_file 2>&1 | logger -t powerfly_refresh # check once, every 30 minutes"
+    # Following line adds the $powerfly_refresh_file to crontab only if it is absent in (crontab -l).
+    cat <(fgrep -i -v "$powerfly_refresh_file" <(crontab -l)) <(echo "$job") | crontab -
+    Info "Cronjob installed [$powerfly_refresh_file]."
+    echo "Cronjobs can be viewed with  [sudo crontab -l]."
+}
 
 ### prints status of given service
 do_status ()
@@ -520,32 +573,64 @@ do_install ()
     i=0
     for p in "${parameters[@]}"
     do
-        private_json="rsa-private.json"
         if [ -f "$private_json" ]; then
             cmd="docker login -u _json_key --password-stdin https://us.gcr.io < $private_json"
             Info $cmd
             eval $cmd
         fi
-        Info "Docker image    : ${url}${ver_str}"
-        cmd="docker run -it -d $p --name ${service}-${i} --restart unless-stopped ${url}${ver_str} ${binary_options}"
-        Info $cmd
-        $cmd
-        #docker run -d $p --name ${service}-${i} --restart unless-stopped $url
-        if [ $? != 0 ]; then
-            Error "!!! Error installing the [$service] "
+        docker_image=${url}${ver_str}
+        if [ $local_docker == 0 ]
+        then
+            Info "Docker image    : $docker_image"
+            cmd="docker pull $docker_image "
+            Info $cmd
+            $cmd
+            if [ $? != 0 ]; then
+                Error "!!! Error Pulling [$docker_image]"
+                cmd="docker logout https://us.gcr.io"
+                Info $cmd
+                $cmd
+                do_exit 1
+            fi
             cmd="docker logout https://us.gcr.io"
             Info $cmd
             $cmd
-            do_exit 1
+        else
+            Info "Fetching local image for $docker_image"
         fi
-        cmd="docker logout https://us.gcr.io"
+        cmd="docker system prune --force"
         Info $cmd
         $cmd
+
+        if [ "$service_base" == "powerfly" ]
+        then
+            instance_suffix=""
+        else
+            instance_suffix="-${i}"
+        fi
+        cmd="docker run -it \
+        --log-opt max-size=100m --log-opt max-file=1 \
+        -d $p \
+        --name ${service}${instance_suffix} \
+        --restart unless-stopped \
+        ${url}${ver_str} \
+        ${binary_options} \
+        "
+        Info $cmd
+        $cmd
+        if [ $? != 0 ]; then
+            Error "!!! Error installing the [$service] "
+            do_exit 1
+        fi
         i=$((i+1))
     done
     is_installed
     if [ $? == 1 ]; then
         Info "Service [$service] installed successfully "
+        if [ "$service_base" == "powerfly" ] && [ "$environment" == "development" ]; then
+            docker_refresh_image=$docker_image
+            add_auto_upgrade_cronjob
+        fi
         echo "5 second wait start"
         sleep 5
         echo "5 second wait complete"
@@ -599,20 +684,6 @@ do_uninstall ()
        fi
    done
 
-   # remove the file
-   cmd="docker images -q $url"
-   Info $cmd
-   list_of_images=$($cmd)
-   for i in $list_of_images
-   do
-       Info "Deleting image [$i]"
-       docker image rm $i
-       if [ $? != 0 ]; then
-           Error "!!! ERROR Not able to delete docker image [$i]"
-           do_exit 1
-       fi
-   done
-
    # cross check
    is_installed
    if [ $? == 1 ]; then
@@ -622,7 +693,6 @@ do_uninstall ()
        Info "Uninstalled successfully"
    fi
 
-   Info "source $alias_file to get alias helpers"
    return 1
 
 }
@@ -686,6 +756,11 @@ interval=
 if [[ "$project" == *"development"* ]]; then
     version=develop
     ver_str=":$version"
+    environment="development"
+elif [[ "$project" == *"production"* ]]; then
+    environment="production"
+else
+    environment="unknown"
 fi
 
 [ "$#" -lt 1 ] && usage
@@ -733,6 +808,12 @@ while [ "$1" != "" ]; do
     shift
 done
 
+if [ "$service_base" == "powerfly" ]
+then
+    #only one instance for powerfly
+    instances=1
+fi
+
 ### Validate options
 [ -n "$status" ]  && [ -z "$service" ] && usage
 [ -n "$install" ] && [ -z "$service" ] && usage
@@ -759,6 +840,9 @@ if [ -n "$device_type" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
   service="$service-$device_type"
+else
+  # form service name for powerfly 
+  service="$service-$device_id"
 fi
 
 ### Call status if asked
