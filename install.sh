@@ -527,6 +527,55 @@ is_installed ()
 ### Installs a service
 do_install ()
 {
+    docker_image=${url}${ver_str}
+    if [ $local_docker == 0 ]
+    then
+        #Fetch image
+        Info "Docker image    : $docker_image"
+        if [ -f "$private_json" ]; then
+            cmd="docker login -u _json_key --password-stdin https://us.gcr.io < $private_json"
+            Info $cmd
+            eval $cmd
+        fi
+        cmd="docker pull $docker_image "
+        Info $cmd
+        allowed_attempts=100
+        for ((attempt=1;attempt<=allowed_attempts;attempt++)) ; do
+            echo -n "Attempt [$attempt] "
+            $cmd
+            stat=$?
+            if [ $stat == 0 ]; then
+                break
+            fi
+        done
+        cmd="docker logout https://us.gcr.io"
+        Info $cmd
+        $cmd
+        if [ $stat != 0 ]; then
+            Error "!!! Error Pulling [$docker_image]"
+            do_exit 1
+        fi
+    else
+        #Local docker image is to be used.
+        if [ "$OSTYPE" == "linux-gnueabihf" ]
+        then
+            #This is for pi. So use arm7
+            url=$url-arm7
+            docker_image=${service_base}-arm7.docker
+            Info "Fetching local image for $docker_image"
+            cmd="docker load -i ${docker_image}"
+            Info $cmd
+            $cmd
+            if [ $? != 0 ]; then
+                Error "!!! Error Fetching [$docker_image]"
+                do_exit 1
+            fi
+        else
+            #This is not pi. So use amd4
+            url=$url-amd64
+        fi
+    fi
+
     # do the installation
     Info "Installing service [$service] on [$device_id] from [$registry]"
 
@@ -555,52 +604,9 @@ do_install ()
     disable_watchdog_service
 
     # everthing is fine good to start the container
-    #Check if local docker image is to be used.
-    if [ $local_docker == 1 ]
-    then
-        if [ "$OSTYPE" == "linux-gnueabihf" ]
-        then
-            #This is for pi. So use arm7
-            url=$url-arm7
-            cmd="docker load -i ${service_base}-arm7.docker"
-            Info $cmd
-            $cmd
-        else
-            #This is not pi. So use amd4
-            url=$url-amd64
-        fi
-    fi
     i=0
     for p in "${parameters[@]}"
     do
-        if [ -f "$private_json" ]; then
-            cmd="docker login -u _json_key --password-stdin https://us.gcr.io < $private_json"
-            Info $cmd
-            eval $cmd
-        fi
-        docker_image=${url}${ver_str}
-        if [ $local_docker == 0 ]
-        then
-            Info "Docker image    : $docker_image"
-            cmd="docker pull $docker_image "
-            Info $cmd
-            $cmd
-            if [ $? != 0 ]; then
-                Error "!!! Error Pulling [$docker_image]"
-                cmd="docker logout https://us.gcr.io"
-                Info $cmd
-                $cmd
-                do_exit 1
-            fi
-            cmd="docker logout https://us.gcr.io"
-            Info $cmd
-            $cmd
-        else
-            Info "Fetching local image for $docker_image"
-        fi
-        cmd="docker system prune --force"
-        Info $cmd
-        $cmd
 
         if [ "$service_base" == "powerfly" ]
         then
@@ -627,6 +633,9 @@ do_install ()
     is_installed
     if [ $? == 1 ]; then
         Info "Service [$service] installed successfully "
+        cmd="docker system prune --force"
+        Info $cmd
+        $cmd
         if [ "$service_base" == "powerfly" ] && [ "$environment" == "development" ]; then
             docker_refresh_image=$docker_image
             add_auto_upgrade_cronjob
