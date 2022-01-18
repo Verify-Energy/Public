@@ -439,7 +439,7 @@ where:
     -p --powerfly                            powerfly service
     -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|
                  solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|
-                 conext_gw_102|conext_xw_102|conext_gw_103|conext_xw_103|
+                 conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
                  BACNetServerSim]
                                              modbus-slave service
     -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
@@ -850,10 +850,10 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "hiq-solar" ] \
   && [ "$device_type" != "l-acuvim" ] \
   && [ "$device_type" != "c2_acuvim" ] \
-  && [ "$device_type" != "conext_gw_102" ] \
-  && [ "$device_type" != "conext_xw_102" ] \
-  && [ "$device_type" != "conext_gw_103" ] \
-  && [ "$device_type" != "conext_xw_103" ] \
+  && [ "$device_type" != "conext_gw_502" ] \
+  && [ "$device_type" != "conext_xw_502" ] \
+  && [ "$device_type" != "conext_gw_503" ] \
+  && [ "$device_type" != "conext_xw_503" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
