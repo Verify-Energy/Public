@@ -717,7 +717,7 @@ set_env ()
         for ((i=0; i<$instances; i++))
         do
             map_port=$((from_port+i))
-            parameters+=("--publish ${map_port}:1500")
+            parameters+=("--publish ${map_port}:1500 --privileged")
         done
     else
         # For now set the timezone as california
