@@ -437,7 +437,10 @@ usage() {
 Usage: $0 -p | -m dev [-i ins [-l] [-v v] [-t p] ] | -u | -s]
 where:
     -p --powerfly                            powerfly service
-    -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|BACNetServerSim]
+    -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|
+                 solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|
+                 conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
+                 BACNetServerSim]
                                              modbus-slave service
     -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
     -l --local                               install from local docker(tar) image
@@ -714,7 +717,7 @@ set_env ()
         for ((i=0; i<$instances; i++))
         do
             map_port=$((from_port+i))
-            parameters+=("--publish ${map_port}:1500")
+            parameters+=("--publish ${map_port}:1500 --privileged")
         done
     else
         # For now set the timezone as california
@@ -847,6 +850,10 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "hiq-solar" ] \
   && [ "$device_type" != "l-acuvim" ] \
   && [ "$device_type" != "c2_acuvim" ] \
+  && [ "$device_type" != "conext_gw_502" ] \
+  && [ "$device_type" != "conext_xw_502" ] \
+  && [ "$device_type" != "conext_gw_503" ] \
+  && [ "$device_type" != "conext_xw_503" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
