@@ -33,6 +33,8 @@ required_files=("config.json"
 project=$(grep '"project"' connection.json|cut -f2 -d":"|tr -d '",')
 device_registry=$(grep '"registry"' connection.json|cut -f2 -d":"|tr -d '",')
 device_id=$(grep '"device"' connection.json|cut -f2 -d":"|tr -d '",')
+registry_url="https://us.gcr.io"
+repo_name=""
 registry=$registry_url/$project/$repo_name
 
 log_installer_data ()
@@ -430,8 +432,6 @@ ip=$(hostname -I | sed 's/ .*//')
 from_port=1500
 parameters=()
 local_docker=0
-registry_url="https://us.gcr.io"
-repo_name=""
 
 ### Usage
 usage() {
