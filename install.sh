@@ -33,7 +33,7 @@ required_files=("config.json"
 project=$(grep '"project"' connection.json|cut -f2 -d":"|tr -d '",')
 device_registry=$(grep '"registry"' connection.json|cut -f2 -d":"|tr -d '",')
 device_id=$(grep '"device"' connection.json|cut -f2 -d":"|tr -d '",')
-registry="us.gcr.io/"$project/
+registry=$registry_url/$project/$repo_name
 
 log_installer_data ()
 {
@@ -430,6 +430,8 @@ ip=$(hostname -I | sed 's/ .*//')
 from_port=1500
 parameters=()
 local_docker=0
+registry_url="https://us.gcr.io"
+repo_name=""
 
 ### Usage
 usage() {
@@ -465,13 +467,13 @@ add_auto_upgrade_cronjob(){
     powerfly_refresh_file_content='#!/bin/bash
     pull_image() {
         cd '$("pwd")'
-        cmd="docker login -u _json_key --password-stdin https://us.gcr.io < '$private_json'"
+        cmd="docker login -u _json_key --password-stdin '$registry_url' < '$private_json'"
         #echo $cmd
         eval $cmd
         cmd="docker pull "'$docker_refresh_image'
         #echo cmd is [$cmd]
         status=$($cmd)
-        cmd="docker logout https://us.gcr.io"
+        cmd="docker logout '$registry_url'"
         #echo $cmd
         $cmd
         echo status is $status
@@ -536,7 +538,7 @@ do_install ()
         #Fetch image
         Info "Docker image    : $docker_image"
         if [ -f "$private_json" ]; then
-            cmd="docker login -u _json_key --password-stdin https://us.gcr.io < $private_json"
+            cmd="docker login -u _json_key --password-stdin '$registry_url' < $private_json"
             Info $cmd
             eval $cmd
         fi
@@ -551,7 +553,7 @@ do_install ()
                 break
             fi
         done
-        cmd="docker logout https://us.gcr.io"
+        cmd="docker logout '$registry_url'"
         Info $cmd
         $cmd
         if [ $stat != 0 ]; then
