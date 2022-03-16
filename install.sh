@@ -440,7 +440,7 @@ where:
     -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|
                  solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
-                 delta_essbd|sebms2|
+                 delta_essbd|sebms2|acurev_2100|
                  BACNetServerSim]
                                              modbus-slave service
     -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
@@ -857,6 +857,7 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "conext_xw_503" ] \
   && [ "$device_type" != "delta_essbd" ] \
   && [ "$device_type" != "sebms2" ] \
+  && [ "$device_type" != "acurev_2100" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
