@@ -440,7 +440,7 @@ where:
     -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|
                  solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
-                 delta_essbd|sebms2|acurev_2100|
+                 delta_essbd|sebms2|acurev_2100|delta_PCSBMS125|delta_PCS125|
                  BACNetServerSim]
                                              modbus-slave service
     -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
@@ -846,6 +846,8 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "solectria" ] \
   && [ "$device_type" != "hawk-1000" ] \
   && [ "$device_type" != "delta-M80" ] \
+  && [ "$device_type" != "delta_PCS125" ] \
+  && [ "$device_type" != "delta_PCSBMS125" ] \
   && [ "$device_type" != "delta-PCS125kW" ] \
   && [ "$device_type" != "BACNetServerSim" ] \
   && [ "$device_type" != "hiq-solar" ] \
