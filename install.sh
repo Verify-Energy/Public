@@ -425,6 +425,7 @@ base_name=`basename $0`
 base_path=$(dirname $(readlink -f $0))
 install_path="$base_path"
 powerfly_service_name='powerfly'
+derctrl_service_name='derctrl'
 modbus_service_name='modbus-slave'
 ip=$(hostname -I | sed 's/ .*//')
 from_port=1500
@@ -434,16 +435,17 @@ local_docker=0
 ### Usage
 usage() {
    cat <<EOF
-Usage: $0 -p | -m dev [-i ins [-l] [-v v] [-t p] ] | -u | -s]
+Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-t p] ] | -u | -s]
 where:
     -p --powerfly                            powerfly service
+    -e --derctrl                             DER ctrl service
     -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|
                  solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
                  delta_essbd|sebms2|acurev_2100|delta_PCSBMS125|delta_PCS125|
                  BACNetServerSim]
                                              modbus-slave service
-    -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
+    -d --delay                               Delay in HH:MM:SS (Hours:Minutes:Seconds)
     -l --local                               install from local docker(tar) image
     -i --install instances                   number of instances to install
     -v --version version                     version to install
@@ -795,7 +797,7 @@ while [ "$1" != "" ]; do
         -t | --port )           shift
                                 from_port=$(($1))
                                 ;;
-        -e | --interval )       shift
+        -d | --delay )          shift
                                 interval="--interval $1"
                                 ;;
         -u | --uninstall )      [ -n "$install" ] && usage || install=0
@@ -806,6 +808,9 @@ while [ "$1" != "" ]; do
                                 service_base=$service
                                 ;;
         -p | --powerfly )       [ -n "$service" ] && usage || service=$powerfly_service_name
+                                service_base=$service
+                                ;;
+        -e | --derctrl )       [ -n "$service" ] && usage || service=$derctrl_service_name
                                 service_base=$service
                                 ;;
         -l | --local )          local_docker=1;
@@ -831,7 +836,7 @@ fi
 ### Validate options
 [ -n "$status" ]  && [ -z "$service" ] && usage
 [ -n "$install" ] && [ -z "$service" ] && usage
-[ $local_docker == 1 ] && [ -z "$service" ] && echo "provide service -p or -m " && usage
+[ $local_docker == 1 ] && [ -z "$service" ] && echo "provide service -p / m / e " && usage
 [ $instances == 0 ] && echo "Instances should greater than 0" && usage
 
 
