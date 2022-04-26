@@ -266,6 +266,40 @@ watchdog_init ()
     fi
 }
 
+#mosquitto broker
+
+is_mosquitto_installed ()
+{
+    if [ -x "$(command -v mosquitto)" ]; then
+        return 1  
+    fi
+    return 0
+}
+
+install_mosquitto ()
+{
+    apt update
+    apt install -y mosquitto mosquitto-clients
+    sudo systemctl enable mosquitto.service
+}
+
+mosquitto_init ()
+{
+    is_mosquitto_installed
+    installed_status=$?
+    if [ $installed_status == 0 ]; then
+        Info "Install mosquitto"
+        install_mosquitto
+        is_mosquitto_installed
+        installed_status=$?
+        if [ $installed_status == 1 ]; then
+            echo "Mosquitto installed and ready"
+        else
+            Error "Error: Mosquitto installation failed."
+        fi
+    fi
+}
+
 do_exit()
 {
     log_docker_info end
@@ -362,6 +396,9 @@ update_dhcpcd_conf ()
 
 #initialize watchdog
 watchdog_init
+
+#initialize mosquitto
+mosquitto_init
 
 ### Add aliases ################################
 alias_file=./.aliases_power
