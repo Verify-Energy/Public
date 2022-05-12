@@ -661,6 +661,7 @@ do_install ()
         fi
     
         if [ $service_base == $modbus_service_name ]
+        then
             network_option=""
         fi
         cmd="docker run -it \
