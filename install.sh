@@ -477,7 +477,8 @@ where:
     -p --powerfly                            powerfly service
     -e --derctrl                             DER ctrl service
     -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|
-                 solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|
+                 solectria|hawk-1000|delta_M80|delta-PCS125kW|hiq-solar|
+                 delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
                  delta_essbd|sebms2|acurev_2100|delta_PCSBMS125|delta_PCS125|
                  BACNetServerSim]
@@ -888,7 +889,11 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "meter" ] \
   && [ "$device_type" != "solectria" ] \
   && [ "$device_type" != "hawk-1000" ] \
-  && [ "$device_type" != "delta-M80" ] \
+  && [ "$device_type" != "delta_M80" ] \
+  && [ "$device_type" != "delta_M80_pb1" ] \
+  && [ "$device_type" != "delta_M80_pb2" ] \
+  && [ "$device_type" != "delta_M80_pb3" ] \
+  && [ "$device_type" != "delta_M80_pb4" ] \
   && [ "$device_type" != "delta_PCS125" ] \
   && [ "$device_type" != "delta_PCSBMS125" ] \
   && [ "$device_type" != "delta-PCS125kW" ] \
