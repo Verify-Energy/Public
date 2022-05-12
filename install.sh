@@ -652,14 +652,19 @@ do_install ()
     for p in "${parameters[@]}"
     do
 
+        network_option="--network=host"
         if [ "$service_base" == "powerfly" ]
         then
             instance_suffix=""
-        else
+        else        
             instance_suffix="-${i}"
         fi
+    
+        if [ $service_base == $modbus_service_name ]
+            network_option=""
+        fi
         cmd="docker run -it \
-        --network="host" \
+        ${network_option} \
         --log-opt max-size=100m --log-opt max-file=1 \
         -d $p \
         --name ${service}${instance_suffix} \
