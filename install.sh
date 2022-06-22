@@ -413,8 +413,6 @@ update_dhcpcd_conf ()
         then
             sudo cp $filename $filename_bk
             echo "" >> $filename
-            echo "# Verify Energy dhcpcd.conf modifications start here" >> $filename
-            echo "" >> $filename
             echo "denyinterfaces wwan0" >> $filename
             log_installer_data "denyinterfaces wwan0" added to $filename
             echo "" >> $filename
