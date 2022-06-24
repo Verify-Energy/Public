@@ -426,9 +426,6 @@ update_dhcpcd_conf ()
 #initialize watchdog
 watchdog_init
 
-#initialize mosquitto
-mosquitto_init
-
 ### Add aliases ################################
 alias_file=./.aliases_power
 
@@ -501,7 +498,7 @@ local_docker=0
 ### Usage
 usage() {
    cat <<EOF
-Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-t p] ] | -u | -s]
+Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-t p] ] | --mosquitto | -u | -s]
 where:
     -p --powerfly                            powerfly service
     -e --derctrl                             DER ctrl service
@@ -509,9 +506,11 @@ where:
                  solectria|hawk-1000|delta_M80|delta-PCS125kW|hiq-solar|
                  delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
-                 delta_essbd|sebms2|acurev_2100|delta_PCSBMS125|delta_PCS125|
+                 delta_essbd|sebms2|acurev2100|delta_PCSBMS125|delta_PCS125|
+                 acurev1312|
                  BACNetServerSim]
                                              modbus-slave service
+    --mosquitto                              install mosquitto broker
     -d --delay                               Delay in HH:MM:SS (Hours:Minutes:Seconds)
     -l --local                               install from local docker(tar) image
     -i --install instances                   number of instances to install
@@ -886,6 +885,9 @@ while [ "$1" != "" ]; do
         -e | --derctrl )       [ -n "$service" ] && usage || service=$derctrl_service_name
                                 service_base=$service
                                 ;;
+        --mosquitto )           mosquitto_init
+                                do_exit
+                                ;;
         -l | --local )          local_docker=1;
                                 ver_str=":local"
                                 ;;
@@ -942,7 +944,8 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "conext_xw_503" ] \
   && [ "$device_type" != "delta_essbd" ] \
   && [ "$device_type" != "sebms2" ] \
-  && [ "$device_type" != "acurev_2100" ] \
+  && [ "$device_type" != "acurev2100" ] \
+  && [ "$device_type" != "acurev1312" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
