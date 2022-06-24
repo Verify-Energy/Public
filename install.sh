@@ -366,16 +366,44 @@ do_entry
 update_dhcpcd_conf ()
 {
     #take backup of /etc/dhcpcd.conf
-    #add "denyinterface wwan0" to /etc/dhcpcd.conf
+    #add Verify Energy's dhcpcd settings
 
     if [ "$OSTYPE" == "linux-gnueabihf" ]
     then
-        #echo denyinterfaces wwan0
         file="dhcpcd.conf"
         file_bk="dhcpcd_bk.conf"
         folder="/etc/"
         filename=$folder$file
         filename_bk=$folder$file_bk
+        
+        #Check for static IP
+
+        if grep -s -q "setup static IP for eth1" $filename
+        then 
+        echo ""
+            log_installer_data $filename contains "static IP for eth1"
+        elif test -f $filename
+        then
+            sudo cp $filename $filename_bk
+            echo "" >> $filename
+            echo "# Verify Energy dhcpcd.conf modifications start here" >> $filename
+            echo "" >> $filename
+            echo "# setup static IP for eth1" >> $filename
+            echo "interface eth1" >> $filename
+            echo "" >> $filename
+            echo "static ip_address=192.168.1.99/24" >> $filename
+            echo "" >> $filename
+            echo "static routers=192.168.0.1" >> $filename
+            echo "" >> $filename
+            echo "static domain_name_servers=192.168.0.1 8.8.8.8 fd51:42f8:caae:d92e::1" >> $filename
+            echo "" >> $filename
+            log_installer_data "eth1 static ip 192.168.1.99" added to $filename
+        else
+            echo ""
+            log_installer_data $filename not found.
+        fi
+
+        #echo denyinterfaces wwan0
 
         if grep -s -q "denyinterfaces wwan0" $filename
         then
@@ -387,6 +415,7 @@ update_dhcpcd_conf ()
             echo "" >> $filename
             echo "denyinterfaces wwan0" >> $filename
             log_installer_data "denyinterfaces wwan0" added to $filename
+            echo "" >> $filename
         else
             echo ""
             log_installer_data $filename not found.
