@@ -266,6 +266,40 @@ watchdog_init ()
     fi
 }
 
+#mosquitto broker
+
+is_mosquitto_installed ()
+{
+    if [ -x "$(command -v mosquitto)" ]; then
+        return 1  
+    fi
+    return 0
+}
+
+install_mosquitto ()
+{
+    apt update
+    apt install -y mosquitto mosquitto-clients
+    sudo systemctl enable mosquitto.service
+}
+
+mosquitto_init ()
+{
+    is_mosquitto_installed
+    installed_status=$?
+    if [ $installed_status == 0 ]; then
+        Info "Install mosquitto"
+        install_mosquitto
+        is_mosquitto_installed
+        installed_status=$?
+        if [ $installed_status == 1 ]; then
+            echo "Mosquitto installed and ready"
+        else
+            Error "Error: Mosquitto installation failed."
+        fi
+    fi
+}
+
 do_exit()
 {
     log_docker_info end
@@ -332,16 +366,44 @@ do_entry
 update_dhcpcd_conf ()
 {
     #take backup of /etc/dhcpcd.conf
-    #add "denyinterface wwan0" to /etc/dhcpcd.conf
+    #add Verify Energy's dhcpcd settings
 
     if [ "$OSTYPE" == "linux-gnueabihf" ]
     then
-        #echo denyinterfaces wwan0
         file="dhcpcd.conf"
         file_bk="dhcpcd_bk.conf"
         folder="/etc/"
         filename=$folder$file
         filename_bk=$folder$file_bk
+        
+        #Check for static IP
+
+        if grep -s -q "setup static IP for eth1" $filename
+        then 
+        echo ""
+            log_installer_data $filename contains "static IP for eth1"
+        elif test -f $filename
+        then
+            sudo cp $filename $filename_bk
+            echo "" >> $filename
+            echo "# Verify Energy dhcpcd.conf modifications start here" >> $filename
+            echo "" >> $filename
+            echo "# setup static IP for eth1" >> $filename
+            echo "interface eth1" >> $filename
+            echo "" >> $filename
+            echo "static ip_address=192.168.1.99/24" >> $filename
+            echo "" >> $filename
+            echo "static routers=192.168.0.1" >> $filename
+            echo "" >> $filename
+            echo "static domain_name_servers=192.168.0.1 8.8.8.8 fd51:42f8:caae:d92e::1" >> $filename
+            echo "" >> $filename
+            log_installer_data "eth1 static ip 192.168.1.99" added to $filename
+        else
+            echo ""
+            log_installer_data $filename not found.
+        fi
+
+        #echo denyinterfaces wwan0
 
         if grep -s -q "denyinterfaces wwan0" $filename
         then
@@ -353,6 +415,7 @@ update_dhcpcd_conf ()
             echo "" >> $filename
             echo "denyinterfaces wwan0" >> $filename
             log_installer_data "denyinterfaces wwan0" added to $filename
+            echo "" >> $filename
         else
             echo ""
             log_installer_data $filename not found.
@@ -425,6 +488,7 @@ base_name=`basename $0`
 base_path=$(dirname $(readlink -f $0))
 install_path="$base_path"
 powerfly_service_name='powerfly'
+derctrl_service_name='derctrl'
 modbus_service_name='modbus-slave'
 ip=$(hostname -I | sed 's/ .*//')
 from_port=1500
@@ -434,16 +498,20 @@ local_docker=0
 ### Usage
 usage() {
    cat <<EOF
-Usage: $0 -p | -m dev [-i ins [-l] [-v v] [-t p] ] | -u | -s]
+Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-t p] ] | --mosquitto | -u | -s]
 where:
     -p --powerfly                            powerfly service
+    -e --derctrl                             DER ctrl service
     -m --modbus [inverter|carboncap|pb_carboncap|meter|acuvim|c2_acuvim|l-acuvim|
-                 solectria|hawk-1000|delta-M80|delta-PCS125kW|hiq-solar|
+                 solectria|hawk-1000|delta_M80|delta-PCS125kW|hiq-solar|
+                 delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
-                 delta_essbd|sebms2|acurev_2100|
+                 delta_essbd|sebms2|acurev2100|delta_PCSBMS125|delta_PCS125|
+                 acurev1312|
                  BACNetServerSim]
                                              modbus-slave service
-    -e --interval                            Interval in HH:MM:SS (Hours:Minutes:Seconds)
+    --mosquitto                              install mosquitto broker
+    -d --delay                               Delay in HH:MM:SS (Hours:Minutes:Seconds)
     -l --local                               install from local docker(tar) image
     -i --install instances                   number of instances to install
     -v --version version                     version to install
@@ -612,13 +680,20 @@ do_install ()
     for p in "${parameters[@]}"
     do
 
+        network_option="--network=host"
         if [ "$service_base" == "powerfly" ]
         then
             instance_suffix=""
-        else
+        else        
             instance_suffix="-${i}"
         fi
+    
+        if [ $service_base == $modbus_service_name ]
+        then
+            network_option=""
+        fi
         cmd="docker run -it \
+        ${network_option} \
         --log-opt max-size=100m --log-opt max-file=1 \
         -d $p \
         --name ${service}${instance_suffix} \
@@ -794,7 +869,7 @@ while [ "$1" != "" ]; do
         -t | --port )           shift
                                 from_port=$(($1))
                                 ;;
-        -e | --interval )       shift
+        -d | --delay )          shift
                                 interval="--interval $1"
                                 ;;
         -u | --uninstall )      [ -n "$install" ] && usage || install=0
@@ -806,6 +881,12 @@ while [ "$1" != "" ]; do
                                 ;;
         -p | --powerfly )       [ -n "$service" ] && usage || service=$powerfly_service_name
                                 service_base=$service
+                                ;;
+        -e | --derctrl )       [ -n "$service" ] && usage || service=$derctrl_service_name
+                                service_base=$service
+                                ;;
+        --mosquitto )           mosquitto_init
+                                do_exit
                                 ;;
         -l | --local )          local_docker=1;
                                 ver_str=":local"
@@ -830,7 +911,7 @@ fi
 ### Validate options
 [ -n "$status" ]  && [ -z "$service" ] && usage
 [ -n "$install" ] && [ -z "$service" ] && usage
-[ $local_docker == 1 ] && [ -z "$service" ] && echo "provide service -p or -m " && usage
+[ $local_docker == 1 ] && [ -z "$service" ] && echo "provide service -p / m / e " && usage
 [ $instances == 0 ] && echo "Instances should greater than 0" && usage
 
 
@@ -845,7 +926,13 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "meter" ] \
   && [ "$device_type" != "solectria" ] \
   && [ "$device_type" != "hawk-1000" ] \
-  && [ "$device_type" != "delta-M80" ] \
+  && [ "$device_type" != "delta_M80" ] \
+  && [ "$device_type" != "delta_M80_pb1" ] \
+  && [ "$device_type" != "delta_M80_pb2" ] \
+  && [ "$device_type" != "delta_M80_pb3" ] \
+  && [ "$device_type" != "delta_M80_pb4" ] \
+  && [ "$device_type" != "delta_PCS125" ] \
+  && [ "$device_type" != "delta_PCSBMS125" ] \
   && [ "$device_type" != "delta-PCS125kW" ] \
   && [ "$device_type" != "BACNetServerSim" ] \
   && [ "$device_type" != "hiq-solar" ] \
@@ -857,7 +944,8 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "conext_xw_503" ] \
   && [ "$device_type" != "delta_essbd" ] \
   && [ "$device_type" != "sebms2" ] \
-  && [ "$device_type" != "acurev_2100" ] \
+  && [ "$device_type" != "acurev2100" ] \
+  && [ "$device_type" != "acurev1312" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
