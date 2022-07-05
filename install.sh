@@ -403,23 +403,6 @@ update_dhcpcd_conf ()
             log_installer_data $filename not found.
         fi
 
-        #echo denyinterfaces wwan0
-
-        if grep -s -q "denyinterfaces wwan0" $filename
-        then
-            echo ""
-            log_installer_data $filename contains "denyinterfaces wwan0"
-        elif test -f $filename
-        then
-            sudo cp $filename $filename_bk
-            echo "" >> $filename
-            echo "denyinterfaces wwan0" >> $filename
-            log_installer_data "denyinterfaces wwan0" added to $filename
-            echo "" >> $filename
-        else
-            echo ""
-            log_installer_data $filename not found.
-        fi
     fi
 }
 
@@ -433,7 +416,7 @@ alias_file=./.aliases_power
 service=powerfly
 c=p
 wdstatus='is_watchdog_service_enabled() { '$wd_status' }'
-wdstart='enable_watchdog() { '$wd_enable' }'
+wdstart='enable_watchdog() { '$wd_enable' }'ß
 wdstop='disable_watchdog() { '$wd_disable' }'
 pstatus=$c'status() { sudo docker ps -a -f name='$service'-$1; }'
 pstart=$c'start() { sudo docker start '$service'-$1; 
