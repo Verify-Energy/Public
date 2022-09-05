@@ -852,7 +852,7 @@ while [ "$1" != "" ]; do
                                 ;;
         -h | --sha )            shift
                                 version=$1
-                                ver_str="@sha:$version"
+                                ver_str="@sha256:$version"
                                 ;;
         -t | --port )           shift
                                 from_port=$(($1))
