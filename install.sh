@@ -481,7 +481,7 @@ local_docker=0
 ### Usage
 usage() {
    cat <<EOF
-Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-t p] ] | --mosquitto | -u | -s]
+Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-h sha] [-t p] ] | --mosquitto | -u | -s]
 where:
     -p --powerfly                            powerfly service
     -e --derctrl                             DER ctrl service
@@ -498,6 +498,7 @@ where:
     -l --local                               install from local docker(tar) image
     -i --install instances                   number of instances to install
     -v --version version                     version to install
+    -h --sha sha                             sha to install
     -t --port                                starting port number for the service
     -u --uninstall                           uninstalls
     -s --status                              status of a service
@@ -848,6 +849,10 @@ while [ "$1" != "" ]; do
         -v | --version )        shift
                                 version=$1
                                 ver_str=":$version"
+                                ;;
+        -h | --sha )            shift
+                                version=$1
+                                ver_str="@sha:$version"
                                 ;;
         -t | --port )           shift
                                 from_port=$(($1))
