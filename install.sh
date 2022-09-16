@@ -481,7 +481,7 @@ local_docker=0
 ### Usage
 usage() {
    cat <<EOF
-Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-t p] ] | --mosquitto | -u | -s]
+Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-h sha] [-t p] ] | --mosquitto | -u | -s]
 where:
     -p --powerfly                            powerfly service
     -e --derctrl                             DER ctrl service
@@ -490,7 +490,7 @@ where:
                  delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
                  delta_essbd|sebms2|acurev2100|delta_PCSBMS125|delta_PCS125|
-                 acurev1312|
+                 acurev1312|chint_CPS_50_60KTL|
                  BACNetServerSim]
                                              modbus-slave service
     --mosquitto                              install mosquitto broker
@@ -498,6 +498,7 @@ where:
     -l --local                               install from local docker(tar) image
     -i --install instances                   number of instances to install
     -v --version version                     version to install
+    -h --sha sha                             sha to install
     -t --port                                starting port number for the service
     -u --uninstall                           uninstalls
     -s --status                              status of a service
@@ -849,6 +850,10 @@ while [ "$1" != "" ]; do
                                 version=$1
                                 ver_str=":$version"
                                 ;;
+        -h | --sha )            shift
+                                version=$1
+                                ver_str="@sha256:$version"
+                                ;;
         -t | --port )           shift
                                 from_port=$(($1))
                                 ;;
@@ -929,6 +934,7 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "sebms2" ] \
   && [ "$device_type" != "acurev2100" ] \
   && [ "$device_type" != "acurev1312" ] \
+  && [ "$device_type" != "chint_CPS_50_60KTL" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
