@@ -678,6 +678,7 @@ do_install ()
         fi
         cmd="docker run -it \
         ${network_option} \
+        --hostname=`hostname` \
         --log-opt max-size=100m --log-opt max-file=1 \
         -d $p \
         --name ${service}${instance_suffix} \
