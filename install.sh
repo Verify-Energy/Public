@@ -629,6 +629,15 @@ do_install ()
         else
             #This is not pi. So use amd4
             url=$url-amd64
+            docker_image=${service_base}-amd64.docker
+            Info "Fetching local image for $docker_image"
+            cmd="docker load -i ${docker_image}"
+            Info $cmd
+            $cmd
+            if [ $? != 0 ]; then
+                Error "!!! Error Fetching [$docker_image]"
+                do_exit 1
+            fi
         fi
     fi
 
