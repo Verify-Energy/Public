@@ -403,23 +403,6 @@ update_dhcpcd_conf ()
             log_installer_data $filename not found.
         fi
 
-        #echo denyinterfaces wwan0
-
-        if grep -s -q "denyinterfaces wwan0" $filename
-        then
-            echo ""
-            log_installer_data $filename contains "denyinterfaces wwan0"
-        elif test -f $filename
-        then
-            sudo cp $filename $filename_bk
-            echo "" >> $filename
-            echo "denyinterfaces wwan0" >> $filename
-            log_installer_data "denyinterfaces wwan0" added to $filename
-            echo "" >> $filename
-        else
-            echo ""
-            log_installer_data $filename not found.
-        fi
     fi
 }
 
@@ -433,7 +416,7 @@ alias_file=./.aliases_power
 service=powerfly
 c=p
 wdstatus='is_watchdog_service_enabled() { '$wd_status' }'
-wdstart='enable_watchdog() { '$wd_enable' }'
+wdstart='enable_watchdog() { '$wd_enable' }'ß
 wdstop='disable_watchdog() { '$wd_disable' }'
 pstatus=$c'status() { sudo docker ps -a -f name='$service'-$1; }'
 pstart=$c'start() { sudo docker start '$service'-$1; 
@@ -498,7 +481,7 @@ local_docker=0
 ### Usage
 usage() {
    cat <<EOF
-Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-t p] ] | --mosquitto | -u | -s]
+Usage: $0 -p | -e | -m dev [-i ins [-l] [-v v] [-h sha] [-t p] ] | --mosquitto | -u | -s]
 where:
     -p --powerfly                            powerfly service
     -e --derctrl                             DER ctrl service
@@ -507,7 +490,7 @@ where:
                  delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
                  delta_essbd|sebms2|acurev2100|delta_PCSBMS125|delta_PCS125|
-                 acurev1312|
+                 acurev1312|chint_CPS_50_60KTL|
                  BACNetServerSim]
                                              modbus-slave service
     --mosquitto                              install mosquitto broker
@@ -515,6 +498,7 @@ where:
     -l --local                               install from local docker(tar) image
     -i --install instances                   number of instances to install
     -v --version version                     version to install
+    -h --sha sha                             sha to install
     -t --port                                starting port number for the service
     -u --uninstall                           uninstalls
     -s --status                              status of a service
@@ -694,6 +678,7 @@ do_install ()
         fi
         cmd="docker run -it \
         ${network_option} \
+        --hostname=`hostname` \
         --log-opt max-size=100m --log-opt max-file=1 \
         -d $p \
         --name ${service}${instance_suffix} \
@@ -866,6 +851,10 @@ while [ "$1" != "" ]; do
                                 version=$1
                                 ver_str=":$version"
                                 ;;
+        -h | --sha )            shift
+                                version=$1
+                                ver_str="@sha256:$version"
+                                ;;
         -t | --port )           shift
                                 from_port=$(($1))
                                 ;;
@@ -946,6 +935,7 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "sebms2" ] \
   && [ "$device_type" != "acurev2100" ] \
   && [ "$device_type" != "acurev1312" ] \
+  && [ "$device_type" != "chint_CPS_50_60KTL" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
