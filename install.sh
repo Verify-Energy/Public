@@ -494,6 +494,7 @@ where:
                  BACNetServerSim]
                                              modbus-slave service
     --mosquitto                              install mosquitto broker
+    --type                                   simulator datamodel type (1.0 | 2.0)
     -d --delay                               Delay in HH:MM:SS (Hours:Minutes:Seconds)
     -l --local                               install from local docker(tar) image
     -i --install instances                   number of instances to install
@@ -774,7 +775,7 @@ do_uninstall ()
 set_env ()
 {
     if [ $1 == $modbus_service_name ]; then
-        binary_options="--device ${device_type} ${interval}"
+        binary_options="--device ${device_type} ${interval} ${datamodel_type}"
         for ((i=0; i<$instances; i++))
         do
             map_port=$((from_port+i))
@@ -824,6 +825,7 @@ status=
 instances=1
 version=
 ver_str=
+datamodel_type_str=
 interval=
 
 if [[ "$project" == *"development"* ]]; then
@@ -876,6 +878,9 @@ while [ "$1" != "" ]; do
                                 ;;
         --mosquitto )           mosquitto_init
                                 do_exit
+                                ;;
+        --type )                shift
+                                datamodel_type="--type:$1"
                                 ;;
         -l | --local )          local_docker=1;
                                 ver_str=":local"
