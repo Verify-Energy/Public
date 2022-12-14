@@ -416,7 +416,7 @@ alias_file=./.aliases_power
 service=powerfly
 c=p
 wdstatus='is_watchdog_service_enabled() { '$wd_status' }'
-wdstart='enable_watchdog() { '$wd_enable' }'ß
+wdstart='enable_watchdog() { '$wd_enable' }'
 wdstop='disable_watchdog() { '$wd_disable' }'
 pstatus=$c'status() { sudo docker ps -a -f name='$service'-$1; }'
 pstart=$c'start() { sudo docker start '$service'-$1; 
