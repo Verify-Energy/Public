@@ -44,6 +44,8 @@ DER_LOG_NAME="/DERCtrl_logging.txt"
 powerfly_log=$('pwd')$PF_LOG_NAME
 DERCtrl_log=$('pwd')$DER_LOG_NAME
 
+DERCtrl_interval="change = 120"
+
 log_installer_data ()
 {
     echo $@ >> $LOG_FILE
@@ -154,13 +156,13 @@ add_watchdog_config_DERCtrl ()
 {
     #Add DERCtrl log file to watchdog .
     echo 'file = '$DERCtrl_log  >> $WATCHDOG_CONF_FILE
-    echo 'change = 60'  >> $WATCHDOG_CONF_FILE
+    echo $DERCtrl_interval  >> $WATCHDOG_CONF_FILE
 }
 
 remove_watchdog_config_DERCtrl ()
 {
     #remove existing DERCtrl log file and change.
-    sed -i '/file = [a-zA-Z0-9_./-]*\\$DER_LOG_NAME/,/change = 60/d' $WATCHDOG_CONF_FILE
+    sed -i '/file = [a-zA-Z0-9_./-]*\\$DER_LOG_NAME/,/$DERCtrl_interval/d' $WATCHDOG_CONF_FILE
 }
 
 
