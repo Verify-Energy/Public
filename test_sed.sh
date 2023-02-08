@@ -6,6 +6,7 @@ PF_LOG_NAME="/logging.txt"
 DER_LOG_NAME="/DERCtrl_logging.txt"
 powerfly_log=$('pwd')$PF_LOG_NAME
 DERCtrl_log=$('pwd')$DER_LOG_NAME
+delete_line='DELETE LINE'
 
 replace_watchdog_config_powerfly ()
 {
@@ -25,7 +26,22 @@ add_watchdog_config_DERCtrl ()
 remove_watchdog_config_DERCtrl ()
 {
     #remove existing DERCtrl log file path.
-    sed -i 's@file = [a-zA-Z0-9_./-]*@file = '$DERCtrl_log'@' $WATCHDOG_CONF_FILE
+
+    #sed '/{START-TAG/{:1;/END-TAG}/!{N;b1};/ID: *222/d}'
+    #cmd="sed -i '' '/file = *$DER_LOG_NAME/{:1;/change = 60/d}' $WATCHDOG_CONF_FILE"
+    #sed '/^tomcat\.util.*$/,/^.*[^\]$/d' /tmp/foobar.txt
+    # sed  '/file = [a-zA-Z0-9_./-]*DERCtrl_logging.txt/,/change = 60/d' watchdog.conf
+    #sed  '/file = [a-zA-Z0-9_/-]*\/DERCtrl_logging.txt/,/change = 60/d' watchdog.conf
+    cmd="sed -i '' '/file = [a-zA-Z0-9_./-]*\\$DER_LOG_NAME/,/change = 60/d' $WATCHDOG_CONF_FILE"
+    echo $cmd
+    eval temp=\`${cmd}\`
+
+    #cmd="sed -i '' 's@file = [a-zA-Z0-9_./-]*$DER_LOG_NAME@$delete_line@' $WATCHDOG_CONF_FILE "
+    #echo $cmd
+    #eval temp=\`${cmd}\`
+    #cmd="sed -i '' '/$delete_line/d' $WATCHDOG_CONF_FILE"
+    #echo $cmd
+    #eval temp=\`${cmd}\`
 }
 
 watchdog_marker="#Watchdog Config for PowerFly"
@@ -68,7 +84,9 @@ watchdog_init ()
         fi           
     else
         #echo "Watchdog config being updated"
-        replace_watchdog_config_powerfly
+        #replace_watchdog_config_powerfly
+        remove_watchdog_config_DERCtrl
+        #add_watchdog_config_DERCtrl
     fi
 
 }
