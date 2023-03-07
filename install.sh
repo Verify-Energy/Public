@@ -524,7 +524,9 @@ where:
                  delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
                  delta_essbd|sebms2|acurev2100|delta_PCSBMS125|delta_PCS125|
-                 acurev1312|chint_CPS_50_60KTL|bccs_2|bccs_2_pb|
+                 acurev1312 | c2_acurev1312 | bccs_2 | bccs_2_pb|
+                 chint_CPS_50_60KTL |
+                 sma_inverter_pb1 | sma_inverter_pb2 |
                  BACNetServerSim]
                                              modbus-slave service
     --mosquitto                              install mosquitto broker
@@ -978,9 +980,12 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "sebms2" ] \
   && [ "$device_type" != "acurev2100" ] \
   && [ "$device_type" != "acurev1312" ] \
+  && [ "$device_type" != "c2_acurev1312" ] \
   && [ "$device_type" != "chint_CPS_50_60KTL" ] \
   && [ "$device_type" != "bccs_2" ] \
   && [ "$device_type" != "bccs_2_pb" ] \
+  && [ "$device_type" != "sma_inverter_pb1" ] \
+  && [ "$device_type" != "sma_inverter_pb2" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
