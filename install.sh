@@ -35,6 +35,15 @@ device_registry=$(grep '"registry"' connection.json|cut -f2 -d":"|tr -d '",')
 device_id=$(grep '"device"' connection.json|cut -f2 -d":"|tr -d '",')
 registry="us.gcr.io/"$project/
 
+WATCHDOG_CONF_FILE="/etc/watchdog.conf"
+#WATCHDOG_CONF_FILE="watchdog.conf"
+BOOT_CONF_FILE="/boot/config.txt"
+
+PF_LOG_NAME="/logging.txt"
+DER_LOG_NAME="/DERCtrl_logging.txt"
+powerfly_log=$('pwd')$PF_LOG_NAME
+DERCtrl_log=$('pwd')$DER_LOG_NAME
+
 log_installer_data ()
 {
     echo $@ >> $LOG_FILE
@@ -75,13 +84,13 @@ log_docker_info ()
 ######### watchdog
 is_watchdog_in_boot_config ()
 {
-    if [ -f "/boot/config.txt" ]; then
-    cmd="grep dtparam=watchdog=on /boot/config.txt -c"
-    watchdog_enabled=$($cmd)
-    if [ $watchdog_enabled == 0 ]; then
-        return 0
-    fi
-    return 1  
+    if [ -f "$BOOT_CONF_FILE" ]; then
+        cmd="grep dtparam=watchdog=on $BOOT_CONF_FILE -c"
+        watchdog_enabled=$($cmd)
+        if [ $watchdog_enabled == 0 ]; then
+            return 0
+        fi
+        return 1  
     else
         return 0
     fi
@@ -89,7 +98,7 @@ is_watchdog_in_boot_config ()
 
 add_watchdog_to_boot_config ()
 {
-    echo 'dtparam=watchdog=on' >> /boot/config.txt
+    echo 'dtparam=watchdog=on' >> $BOOT_CONF_FILE
 }
 
 is_watchdog_dev_present ()
@@ -118,7 +127,7 @@ install_watchdog ()
 
 is_watchdog_configured ()
 {
-    cmd="grep PowerFly /etc/watchdog.conf -c"
+    cmd="grep PowerFly $WATCHDOG_CONF_FILE -c"
     watchdog_configured=$($cmd)
     if [ $watchdog_configured == 0 ]; then
         return 0
@@ -126,21 +135,34 @@ is_watchdog_configured ()
     return 1  
 }
 
-update_watchdog_config ()
+replace_watchdog_config_powerfly ()
 {
-    powerfly_log=$('pwd')/logging.txt
-    sed -i 's@file = [a-zA-Z0-9_./-]*@file = '$powerfly_log'@' /etc/watchdog.conf
+    #replace existing powerfly log file path with this new one.
+    sed -i 's@file = [a-zA-Z0-9_./-]*$PF_LOG_NAME@file = $powerfly_log@' $WATCHDOG_CONF_FILE
 }
 
-add_watchdog_config ()
+add_watchdog_config_powerfly ()
 {
-    echo '#Watchdog Config for PowerFly' >> /etc/watchdog.conf
-    update_watchdog_config
-    echo 'watchdog-timeout = 60' >> /etc/watchdog.conf
-    echo 'max-load-1 = 24' >> /etc/watchdog.conf
-    echo 'file = '$powerfly_log  >> /etc/watchdog.conf
-    echo 'change = 60'  >> /etc/watchdog.conf
+    echo '#Watchdog Config for PowerFly' >> $WATCHDOG_CONF_FILE
+    echo 'watchdog-timeout = 60' >> $WATCHDOG_CONF_FILE
+    echo 'max-load-1 = 24' >> $WATCHDOG_CONF_FILE
+    echo 'file = '$powerfly_log  >> $WATCHDOG_CONF_FILE
+    echo 'change = 60'  >> $WATCHDOG_CONF_FILE
 }
+
+add_watchdog_config_DERCtrl ()
+{
+    #Add DERCtrl log file to watchdog .
+    echo 'file = '$DERCtrl_log  >> $WATCHDOG_CONF_FILE
+    echo 'change = 60'  >> $WATCHDOG_CONF_FILE
+}
+
+remove_watchdog_config_DERCtrl ()
+{
+    #remove existing DERCtrl log file and change.
+    sed -i '/file = [a-zA-Z0-9_./-]*\\$DER_LOG_NAME/,/change = 60/d' $WATCHDOG_CONF_FILE
+}
+
 
 wd_status='cmd="sudo systemctl is-active watchdog"
     service_state=$($cmd)
@@ -194,6 +216,18 @@ disable_watchdog_service()
    eval "$wd_disable"
 }
 
+watchdog_add_DERCtrl()
+{
+    is_watchdog_configured
+    config_status=$?
+    if [ $config_status == 0 ]; then
+        echo "Error: Watchdog Not configured"
+        return 0
+    fi           
+    remove_watchdog_config_DERCtrl
+    add_watchdog_config_DERCtrl
+}
+
 watchdog_init ()
 {
     is_watchdog_dev_present
@@ -207,7 +241,7 @@ watchdog_init ()
             config_status=$?
             if [ $config_status == 0 ]; then
                 #echo "Watchdog config being added"
-                add_watchdog_config
+                add_watchdog_config_powerfly
                 is_watchdog_configured
                 config_status=$?
                 if [ $config_status == 0 ]; then
@@ -215,7 +249,7 @@ watchdog_init ()
                 fi           
             else
                 #echo "Watchdog config being updated"
-                update_watchdog_config
+                replace_watchdog_config_powerfly
             fi
 
         else
@@ -229,7 +263,7 @@ watchdog_init ()
                 config_status=$?
                 if [ $config_status == 0 ]; then
                     #echo "Watchdog config being added"
-                    add_watchdog_config
+                    add_watchdog_config_powerfly
                     is_watchdog_configured
                     config_status=$?
                     if [ $config_status == 0 ]; then
@@ -237,7 +271,7 @@ watchdog_init ()
                     fi              
                 else
                     #echo "Watchdog config being updated"
-                    update_watchdog_config
+                    replace_watchdog_config_powerfly
                 fi
             else
                 echo "Error: Watchdog installation failed."
@@ -249,7 +283,7 @@ watchdog_init ()
         boot_config_watchdog_presence=$?
         #echo boot_config_watchdog_presence is $boot_config_watchdog_presence
         if [ $boot_config_watchdog_presence == 0 ]; then
-            echo "Enable Watchdog in /boot/config.txt"
+            echo "Enable Watchdog in $BOOT_CONF_FILE"
             add_watchdog_to_boot_config
             boot_config_watchdog_presence=$?
             if [ $boot_config_watchdog_presence == 1 ]; then
@@ -490,7 +524,9 @@ where:
                  delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
                  delta_essbd|sebms2|acurev2100|delta_PCSBMS125|delta_PCS125|
-                 acurev1312|chint_CPS_50_60KTL|bccs_2
+                 acurev1312 | c2_acurev1312 | bccs_2 | bccs_2_pb|
+                 chint_CPS_50_60KTL |
+                 sma_inverter_pb1 | sma_inverter_pb2 |
                  BACNetServerSim]
                                              modbus-slave service
     --mosquitto                              install mosquitto broker
@@ -635,7 +671,7 @@ do_install ()
     # do the installation
     Info "Installing service [$service] on [$device_id] from [$registry]"
 
-    # if installed, and not interesetd to upgrade exit
+    # if installed, and not interested to upgrade exit
     is_installed
     if [ $? != 0 ]; then
         read -p "Service [$service] exists, want to uninstall first? n/[Y]?" -r -n 1 SELECT
@@ -709,6 +745,10 @@ do_install ()
         echo "5 second wait complete"
 
         #Enable watchdog
+        if [ "$service_base" == "$derctrl_service_name" ]
+        then
+            watchdog_add_DERCtrl
+        fi
         enable_watchdog_service
 
     else
@@ -726,6 +766,11 @@ do_uninstall ()
        Info " Service [$service] not installed"
        do_exit 1
    fi
+
+    if [ "$service_base" == "$derctrl_service_name" ]
+    then
+        remove_watchdog_config_DERCtrl
+    fi
 
    Info "Stopping service [$service]"
 
@@ -935,8 +980,12 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "sebms2" ] \
   && [ "$device_type" != "acurev2100" ] \
   && [ "$device_type" != "acurev1312" ] \
+  && [ "$device_type" != "c2_acurev1312" ] \
   && [ "$device_type" != "chint_CPS_50_60KTL" ] \
   && [ "$device_type" != "bccs_2" ] \
+  && [ "$device_type" != "bccs_2_pb" ] \
+  && [ "$device_type" != "sma_inverter_pb1" ] \
+  && [ "$device_type" != "sma_inverter_pb2" ] \
   && [ "$device_type" != "acuvim" ]; then
     Error "Unsupported device [$device_type]" && usage
   fi
