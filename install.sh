@@ -674,7 +674,7 @@ do_install ()
     # if installed, and not interested to upgrade exit
     is_installed
     if [ $? != 0 ]; then
-        read -p "Service [$service] exists, want to uninstall first? n/[Y]?" -r -n 1 SELECT
+        read -t 10 -p "Service [$service] exists, want to uninstall first? n/[Y]?" -r -n 1 SELECT
         echo ""
         if [[ $SELECT =~ ^[Nn]$ ]]
         then
