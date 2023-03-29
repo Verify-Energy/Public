@@ -12,7 +12,7 @@ echo "Enter the name for this powerfly"
 read powerfly_name
 
 echo "Enter the pw for $powerfly_name"
-read -s powerfly_pw
+read powerfly_pw
 
 echo "Enter the key for remote.it"
 read remote_it_key
