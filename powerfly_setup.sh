@@ -31,6 +31,7 @@ echo pi:$powerfly_pw | chpasswd
 # 5) change host name
 echo "********************************************** Changing host name"
 sudo raspi-config nonint do_hostname $powerfly_name
+sudo hostnamectl set-hostname $powerfly_name
 
 # 6) Localization a) Change locale en_US.UTF-8 UTF-8
 echo "********************************************** Changing Locale"
