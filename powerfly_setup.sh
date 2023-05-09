@@ -8,14 +8,63 @@ if [[ $EUID > 0 ]] ; then
     exit
 fi
 
-echo "Enter the name for this powerfly"
-read powerfly_name
 
-echo "Enter the pw for $powerfly_name"
-read powerfly_pw
+usage() {
+   cat <<EOF
+Usage: $0 [ -n name -p pw -r remoteit_key ]
+where:
+    -n --name                      powerfly docker image.
+    -p --pw                        modbus-slave as a docker image.
+    -r --remoteit_key              DER Controller.
+EOF
+   exit 0
+}
 
-echo "Enter the key for remote.it"
-read remote_it_key
+name_entered=0
+pw_entered=0
+remoteit_key_entered=0
+
+powerfly_name=""
+powerfly_pw=""
+remote_it_key=""
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -n | --name )           name_entered=1
+                                shift
+                                powerfly_name=$1
+                                ;;
+        -p | --pw )             pw_entered=1
+                                shift
+                                powerfly_pw=$1
+                                ;;
+        -r | --remoteit_key )   remoteit_key_entered=1
+                                shift
+                                remote_it_key=$1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+if [ $name_entered == 0 ] ; then
+    echo "Enter the name for this powerfly"
+    read powerfly_name
+fi
+
+if [ $pw_entered == 0 ] ; then
+    echo "Enter the pw for $powerfly_name"
+    read powerfly_pw
+fi
+
+if [ $remoteit_key_entered == 0 ] ; then
+    echo "Enter the key for remote.it"
+    read remote_it_key
+fi
 
 echo Update and Upgrade
 sudo apt update && sudo apt upgrade -y
