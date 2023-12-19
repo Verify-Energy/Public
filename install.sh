@@ -523,7 +523,7 @@ where:
                  solectria|hawk-1000|delta_M80|delta-PCS125kW|hiq-solar|
                  delta_M80_pb1|delta_M80_pb2|delta_M80_pb3|delta_M80_pb4|
                  conext_gw_502|conext_xw_502|conext_gw_503|conext_xw_503|
-                 delta_essbd|sebms2|acurev2100|delta_PCSBMS125|delta_PCS125|
+                 delta_essbd|sebms2|acurev2100|acurev_2100_v2|delta_PCSBMS125|delta_PCS125|
                  acurev1312 | c2_acurev1312 | bccs_2 | bccs_2_pb|
                  chint_CPS_50_60KTL |
                  sma_inverter_pb1 | sma_inverter_pb2 |
@@ -979,6 +979,7 @@ if [ -n "$device_type" ]; then
   && [ "$device_type" != "delta_essbd" ] \
   && [ "$device_type" != "sebms2" ] \
   && [ "$device_type" != "acurev2100" ] \
+  && [ "$device_type" != "acurev_2100_v2" ] \
   && [ "$device_type" != "acurev1312" ] \
   && [ "$device_type" != "c2_acurev1312" ] \
   && [ "$device_type" != "chint_CPS_50_60KTL" ] \
